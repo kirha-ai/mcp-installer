@@ -1,0 +1,51 @@
+{
+  "name": "@kirha/mcp-installer",
+  "version": "1.0.0",
+  "description": "MCP Installer - Install Kirha MCP server for various development environments",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "kirha",
+    "claude",
+    "cursor",
+    "vscode",
+    "docker",
+    "installer",
+    "cli"
+  ],
+  "homepage": "https://github.com/kirha-ai/mcp-installer",
+  "bugs": {
+    "url": "https://github.com/kirha-ai/mcp-installer/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kirha-ai/mcp-installer.git"
+  },
+  "license": "MIT",
+  "author": "Kirha AI",
+  "main": "index.js",
+  "bin": {
+    "mcp-installer": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "install.js",
+    "binaries/"
+  ],
+  "scripts": {
+    "postinstall": "node install.js",
+    "prepublishOnly": "echo 'Ensure binaries are built before publishing'"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

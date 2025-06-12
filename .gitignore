@@ -1,0 +1,31 @@
+# Ignore everything
+*
+
+# But not these files...
+!/.gitignore
+
+!*.go
+!*.proto
+!*.svg
+!*.sql
+!*.html
+!*.gohtml
+!*.css
+!go.sum
+!go.mod
+!.golangci.yml
+!Dockerfile
+!CHANGELOG.md
+!.github/workflows/*.yml
+!.env.example
+!pkg/npm/*
+!Makefile
+
+!DOCS.md
+!README.md
+!LICENSE
+
+# !Makefile
+
+# ...even if they are in subdirectories
+!*/
