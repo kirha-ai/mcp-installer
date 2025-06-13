@@ -8,6 +8,7 @@ import (
 func NewCmdInstall() *cobra.Command {
 	var (
 		client     string
+		vertical   string
 		apiKey     string
 		configPath string
 		dryRun     bool
@@ -21,27 +22,29 @@ func NewCmdInstall() *cobra.Command {
 
 This command will add the Kirha MCP server to the client's configuration.
 If the server already exists, the command will fail with a suggestion to use 'update' instead.`,
-		Example: `  # Install for Claude Desktop
-  mcp-installer install --client claude --key your-api-key-here
+		Example: `  # Install crypto vertical for Claude Desktop
+  mcp-installer install --client claude --vertical crypto --key your-api-key-here
 
-  # Install for Docker with dry run
-  mcp-installer install --client docker --key your-api-key-here --dry-run
+  # Install utils vertical for Docker with dry run
+  mcp-installer install --client docker --vertical utils --key your-api-key-here --dry-run
 
-  # Install for VS Code with custom config path
-  mcp-installer install --client vscode --key your-api-key-here --config-path /custom/path`,
+  # Install crypto vertical for VS Code with custom config path
+  mcp-installer install --client vscode --vertical crypto --key your-api-key-here --config-path /custom/path`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationInstall, client, apiKey, configPath, dryRun, verbose)
+			return runOperation(cmd, installer.OperationInstall, client, vertical, apiKey, configPath, dryRun, verbose, false)
 		},
 	}
 
 	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to install for (required)")
+	cmd.Flags().StringVar(&vertical, "vertical", "", "Vertical to install (crypto, utils) (required)")
 	cmd.Flags().StringVarP(&apiKey, "key", "k", "", "API key for Kirha MCP server (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 
-	cmd.MarkFlagRequired("client")
-	cmd.MarkFlagRequired("key")
+	_ = cmd.MarkFlagRequired("client")
+	_ = cmd.MarkFlagRequired("vertical")
+	_ = cmd.MarkFlagRequired("key")
 
 	return cmd
 }

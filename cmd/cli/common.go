@@ -11,10 +11,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func runOperation(cmd *cobra.Command, operation installer.OperationType, client, apiKey, configPath string, dryRun, verbose bool) error {
+func runOperation(cmd *cobra.Command, operation installer.OperationType, client, vertical, apiKey, configPath string, dryRun, verbose, onlyKirha bool) error {
 	clientType, err := validateClient(client)
 	if err != nil {
 		return err
+	}
+
+	var verticalType installer.VerticalType
+	if vertical != "" {
+		verticalType, err = validateVertical(vertical)
+		if err != nil {
+			return err
+		}
 	}
 
 	if operation != installer.OperationRemove && operation != installer.OperationShow && apiKey == "" {
@@ -23,11 +31,13 @@ func runOperation(cmd *cobra.Command, operation installer.OperationType, client,
 
 	config := &installer.Config{
 		Client:     clientType,
+		Vertical:   verticalType,
 		ApiKey:     apiKey,
 		ConfigPath: configPath,
 		Operation:  operation,
 		DryRun:     dryRun,
 		Verbose:    verbose,
+		OnlyKirha:  onlyKirha,
 	}
 
 	app, err := di.ProvideInstallerApplication()
@@ -40,15 +50,17 @@ func runOperation(cmd *cobra.Command, operation installer.OperationType, client,
 
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrServerExistsUseUpdate) {
-			return fmt.Errorf("MCP server already exists for %s. Use 'mcp-installer update --client %s --key <api-key>' to update it", client, client)
+			return fmt.Errorf("MCP server already exists for %s %s vertical. Use 'mcp-installer update --client %s --vertical %s --key <api-key>' to update it", client, vertical, client, vertical)
 		} else if errors.Is(err, domainErrors.ErrServerNotFoundForUpdate) {
-			return fmt.Errorf("MCP server not found for %s. Use 'mcp-installer install --client %s --key <api-key>' to install it first", client, client)
+			return fmt.Errorf("MCP server not found for %s %s vertical. Use 'mcp-installer install --client %s --vertical %s --key <api-key>' to install it first", client, vertical, client, vertical)
 		} else if errors.Is(err, domainErrors.ErrServerNotFoundForRemove) {
-			return fmt.Errorf("MCP server not found for %s. Nothing to remove", client)
+			return fmt.Errorf("MCP server not found for %s %s vertical. Nothing to remove", client, vertical)
 		} else if errors.Is(err, domainErrors.ErrClientRunning) {
 			return fmt.Errorf("the %s application is currently running. Please close it and try again", client)
 		} else if errors.Is(err, domainErrors.ErrUnsupportedClient) {
 			return fmt.Errorf("unsupported client: %s\n\nSupported clients: claude, cursor, vscode, claude-code, docker", client)
+		} else if errors.Is(err, domainErrors.ErrUnsupportedVertical) {
+			return fmt.Errorf("unsupported vertical: %s\n\nSupported verticals: crypto, utils", vertical)
 		} else {
 			return fmt.Errorf("operation failed: %w", err)
 		}
@@ -80,6 +92,17 @@ func validateClient(client string) (installer.ClientType, error) {
 		return installer.ClientTypeDocker, nil
 	default:
 		return "", domainErrors.ErrUnsupportedClient
+	}
+}
+
+func validateVertical(vertical string) (installer.VerticalType, error) {
+	switch strings.ToLower(vertical) {
+	case "crypto":
+		return installer.VerticalTypeCrypto, nil
+	case "utils":
+		return installer.VerticalTypeUtils, nil
+	default:
+		return "", domainErrors.ErrUnsupportedVertical
 	}
 }
 

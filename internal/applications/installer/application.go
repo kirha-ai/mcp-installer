@@ -89,7 +89,7 @@ func (a *Application) install(ctx context.Context, config *installer.Config) (*i
 		return nil, err
 	}
 
-	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig)
+	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
 		return nil, err
@@ -152,7 +152,7 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 		return nil, err
 	}
 
-	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig)
+	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
 		return nil, err
@@ -173,7 +173,7 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 		}, nil
 	}
 
-	configWithoutServer, err := clientInstaller.RemoveMcpServer(ctx, currentConfig)
+	configWithoutServer, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to remove existing server", logger.Error(err))
 		return nil, err
@@ -217,7 +217,7 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 		return nil, err
 	}
 
-	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig)
+	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
 		return nil, err
@@ -243,7 +243,7 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 		a.logger.ErrorContext(ctx, "failed to create backup", logger.Error(err))
 	}
 
-	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig)
+	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to remove MCP server", logger.Error(err))
 
@@ -303,7 +303,7 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 		return nil, err
 	}
 
-	mcpServer := installer.NewKirhaMcpServer(config.ApiKey)
+	mcpServer := installer.NewKirhaMcpServer(config.ApiKey, config.Vertical)
 
 	updatedConfig, err := clientInstaller.AddMcpServer(ctx, currentConfig, mcpServer)
 	if err != nil {
@@ -403,41 +403,79 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 		}, nil
 	}
 
-	hasServer, err := clientInstaller.HasMcpServer(ctx, currentConfig)
+	var hasServer bool
+	var serverConfig *installer.McpServer
+
+	// If specific vertical is requested, check for that specific server
+	if config.Vertical != "" {
+		hasServer, err = clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
+			return nil, err
+		}
+
+		if hasServer {
+			serverConfig, err = clientInstaller.GetMcpServerConfig(ctx, currentConfig, config.Vertical)
+			if err != nil {
+				a.logger.ErrorContext(ctx, "failed to get server config", logger.Error(err))
+				return nil, err
+			}
+		}
+	} else {
+		// If no specific vertical requested, check if any Kirha servers exist
+		hasCrypto, err := clientInstaller.HasMcpServer(ctx, currentConfig, installer.VerticalTypeCrypto)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to check if crypto server exists", logger.Error(err))
+			return nil, err
+		}
+
+		hasUtils, err := clientInstaller.HasMcpServer(ctx, currentConfig, installer.VerticalTypeUtils)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to check if utils server exists", logger.Error(err))
+			return nil, err
+		}
+
+		hasServer = hasCrypto || hasUtils
+	}
+
+	// Handle vertical filtering by adding a new method to the interface
+	var fullConfig string
+
+	if config.Vertical != "" && hasServer {
+		// Format only the specific vertical's server configuration
+		fullConfig, err = clientInstaller.FormatSpecificServer(ctx, currentConfig, config.Vertical)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to format specific server config", logger.Error(err))
+			// Fall back to showing all servers
+			fullConfig, err = clientInstaller.FormatConfig(ctx, currentConfig, config.OnlyKirha)
+		}
+	} else {
+		fullConfig, err = clientInstaller.FormatConfig(ctx, currentConfig, config.OnlyKirha)
+	}
+
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
+		a.logger.ErrorContext(ctx, "failed to format config", logger.Error(err))
 		return nil, err
 	}
 
-	var serverConfig *installer.McpServer
 	var message string
-	var fullConfig string
-
-	if hasServer {
-		serverConfig, err = clientInstaller.GetMcpServerConfig(ctx, currentConfig)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to get server config", logger.Error(err))
-			return nil, err
+	if config.Vertical != "" {
+		// Showing specific vertical
+		if hasServer {
+			message = fmt.Sprintf("MCP configuration for %s (vertical: %s):\n\n%s", config.Client, config.Vertical, fullConfig)
+		} else {
+			if fullConfig == "No MCP servers configured" {
+				message = fmt.Sprintf("No MCP servers configured for %s", config.Client)
+			} else {
+				message = fmt.Sprintf("Kirha MCP server not found for %s %s vertical, but other servers are configured:\n\n%s", config.Client, config.Vertical, fullConfig)
+			}
 		}
-
-		fullConfig, err = clientInstaller.FormatConfig(ctx, currentConfig)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to format config", logger.Error(err))
-			return nil, err
-		}
-
-		message = fmt.Sprintf("MCP configuration for %s:\n\n%s", config.Client, fullConfig)
 	} else {
-		fullConfig, err = clientInstaller.FormatConfig(ctx, currentConfig)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to format config", logger.Error(err))
-			return nil, err
-		}
-
+		// Showing all servers
 		if fullConfig == "No MCP servers configured" {
 			message = fmt.Sprintf("No MCP servers configured for %s", config.Client)
 		} else {
-			message = fmt.Sprintf("Kirha MCP server not found for %s, but other servers are configured:\n\n%s", config.Client, fullConfig)
+			message = fmt.Sprintf("MCP configuration for %s:\n\n%s", config.Client, fullConfig)
 		}
 	}
 
@@ -506,7 +544,7 @@ func (a *Application) Uninstall(ctx context.Context, config *installer.Config) (
 		return nil, err
 	}
 
-	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig)
+	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to remove MCP server", logger.Error(err))
 
@@ -551,6 +589,10 @@ func (a *Application) Uninstall(ctx context.Context, config *installer.Config) (
 func (a *Application) validateApiKey(apiKey string) error {
 	if apiKey == "" {
 		return errors.ErrApiKeyRequired
+	}
+
+	if len(apiKey) < 8 {
+		return errors.ErrApiKeyInvalid
 	}
 
 	if strings.TrimSpace(apiKey) != apiKey || strings.Contains(apiKey, " ") {

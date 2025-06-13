@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/kirha-ai/logger"
 	"github.com/kirha-ai/mcp-installer/internal/adapters/installers"
@@ -89,14 +90,16 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 // AddMcpServer adds the MCP server to the configuration
 func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server *installer.McpServer) (interface{}, error) {
 	// For Docker, we create a complete docker-compose configuration
+	// Use the server name from the McpServer parameter
+	serviceName := fmt.Sprintf("%s-mcp", server.Name)
 	dockerConfig := &DockerComposeConfig{
 		Version: "3.8",
 		Services: map[string]ServiceConfig{
-			"kirha-mcp": {
+			serviceName: {
 				Image: "node:18-alpine",
 				Command: []string{
 					"sh", "-c",
-					fmt.Sprintf("npx -y @kirha/mcp-server"),
+					fmt.Sprintf("npx -y @%s/mcp-server", server.Name),
 				},
 				Environment: server.Environment,
 				Restart:     "unless-stopped",
@@ -114,7 +117,7 @@ func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server
 }
 
 // RemoveMcpServer removes the MCP server from the configuration
-func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}) (interface{}, error) {
+func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (interface{}, error) {
 	// For Docker, we'll just remove the generated file
 	return nil, nil
 }
@@ -234,7 +237,7 @@ func (i *Installer) RestoreConfig(ctx context.Context, backupPath string) error 
 	}
 
 	// Determine target path based on backup filename
-	targetPath := backupPath
+	var targetPath string
 	if filepath.Base(backupPath) == fmt.Sprintf("docker-compose.mcp.yml.backup_%s", filepath.Ext(backupPath)) {
 		targetPath = filepath.Join(filepath.Dir(backupPath), "docker-compose.mcp.yml")
 	} else {
@@ -271,8 +274,8 @@ func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	// Check if any kirha-mcp containers are running
-	cmd = exec.CommandContext(ctx, "docker", "ps", "--filter", "name=kirha-mcp", "--format", "{{.Names}}")
+	// Check if any MCP containers are running (check all verticals)
+	cmd = exec.CommandContext(ctx, "docker", "ps", "--filter", "name=-mcp", "--format", "{{.Names}}")
 	output, err := cmd.Output()
 	if err != nil {
 		return false, nil
@@ -282,7 +285,7 @@ func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 }
 
 // HasMcpServer checks if the MCP server exists in the configuration
-func (i *Installer) HasMcpServer(ctx context.Context, config interface{}) (bool, error) {
+func (i *Installer) HasMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (bool, error) {
 	// Handle nil config (used for remove operations)
 	if config == nil {
 		return false, nil
@@ -293,12 +296,14 @@ func (i *Installer) HasMcpServer(ctx context.Context, config interface{}) (bool,
 		return false, errors.ErrConfigInvalid
 	}
 
-	_, exists := dockerConfig.Services["kirha-mcp"]
+	// Use vertical-specific service name
+	serviceName := fmt.Sprintf("%s-mcp", installer.GetServerName(vertical))
+	_, exists := dockerConfig.Services[serviceName]
 	return exists, nil
 }
 
 // GetMcpServerConfig returns the current MCP server configuration if it exists
-func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) (*installer.McpServer, error) {
+func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}, vertical installer.VerticalType) (*installer.McpServer, error) {
 	// Handle nil config (used for remove operations)
 	if config == nil {
 		return nil, errors.ErrServerNotFound
@@ -309,16 +314,19 @@ func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) 
 		return nil, errors.ErrConfigInvalid
 	}
 
-	service, exists := dockerConfig.Services["kirha-mcp"]
+	// Use vertical-specific service name
+	serverName := installer.GetServerName(vertical)
+	serviceName := fmt.Sprintf("%s-mcp", serverName)
+	service, exists := dockerConfig.Services[serviceName]
 	if !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
 	// Docker MCP server configuration
 	mcpServer := &installer.McpServer{
-		Name:        installer.ServerName,
+		Name:        serverName,
 		Command:     "npx",
-		Args:        []string{"-y", "@kirha/mcp-server"},
+		Args:        []string{"-y", fmt.Sprintf("@%s/mcp-server", serverName)},
 		Environment: service.Environment,
 	}
 
@@ -326,7 +334,7 @@ func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) 
 }
 
 // FormatConfig returns a human-readable representation of the configuration
-func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (string, error) {
+func (i *Installer) FormatConfig(ctx context.Context, config interface{}, onlyKirha bool) (string, error) {
 	// Handle nil config (used for remove operations)
 	if config == nil {
 		return "No MCP servers configured", nil
@@ -341,8 +349,50 @@ func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (strin
 		return "No MCP servers configured", nil
 	}
 
-	var result string
+	// Separate services into Kirha and Other categories
+	kirhaServices := make(map[string]ServiceConfig)
+	otherServices := make(map[string]ServiceConfig)
+
 	for name, service := range dockerConfig.Services {
+		if strings.Contains(name, "kirha-") {
+			kirhaServices[name] = service
+		} else {
+			otherServices[name] = service
+		}
+	}
+
+	// If onlyKirha is true, only show Kirha services
+	if onlyKirha {
+		if len(kirhaServices) == 0 {
+			return "No Kirha MCP servers configured", nil
+		}
+		return i.formatServiceSection("Kirha MCP Servers", kirhaServices), nil
+	}
+
+	// Format both sections
+	var result string
+
+	// Add Kirha section if any exist
+	if len(kirhaServices) > 0 {
+		result += i.formatServiceSection("Kirha MCP Servers", kirhaServices)
+	}
+
+	// Add Other section if any exist
+	if len(otherServices) > 0 {
+		if len(kirhaServices) > 0 {
+			result += "\n"
+		}
+		result += i.formatServiceSection("Other MCP Servers", otherServices)
+	}
+
+	return result, nil
+}
+
+func (i *Installer) formatServiceSection(sectionTitle string, services map[string]ServiceConfig) string {
+	var result string
+	result += fmt.Sprintf("=== %s ===\n\n", sectionTitle)
+
+	for name, service := range services {
 		result += fmt.Sprintf("Service: %s\n", name)
 
 		if service.Image != "" {
@@ -375,5 +425,31 @@ func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (strin
 		result += "\n"
 	}
 
-	return result, nil
+	return result
+}
+
+func (i *Installer) FormatSpecificServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (string, error) {
+	// Handle nil config
+	if config == nil {
+		return "", errors.ErrServerNotFound
+	}
+
+	dockerConfig, ok := config.(*DockerComposeConfig)
+	if !ok {
+		return "", errors.ErrConfigInvalid
+	}
+
+	serviceName := installer.GetServerName(vertical)
+	serviceConfig, exists := dockerConfig.Services[serviceName]
+	if !exists {
+		return "", errors.ErrServerNotFound
+	}
+
+	// Create a map with only the specific service
+	specificService := map[string]ServiceConfig{
+		serviceName: serviceConfig,
+	}
+
+	// Format just this one service
+	return i.formatServiceSection(fmt.Sprintf("Kirha MCP Server (%s)", vertical), specificService), nil
 }

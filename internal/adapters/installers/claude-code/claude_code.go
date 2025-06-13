@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/kirha-ai/logger"
 	"github.com/kirha-ai/mcp-installer/internal/adapters/installers"
@@ -131,19 +132,21 @@ func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server
 	return claudeCodeConfig, nil
 }
 
-func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}) (interface{}, error) {
+func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (interface{}, error) {
 	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	if _, exists := claudeCodeConfig.McpServers[installer.ServerName]; !exists {
+	serverName := installer.GetServerName(vertical)
+	if _, exists := claudeCodeConfig.McpServers[serverName]; !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
-	delete(claudeCodeConfig.McpServers, installer.ServerName)
+	delete(claudeCodeConfig.McpServers, serverName)
 
-	i.logger.InfoContext(ctx, "removed MCP server from configuration")
+	i.logger.InfoContext(ctx, "removed MCP server from configuration",
+		slog.String("server", serverName))
 
 	return claudeCodeConfig, nil
 }
@@ -227,36 +230,38 @@ func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 	}
 }
 
-func (i *Installer) HasMcpServer(ctx context.Context, config interface{}) (bool, error) {
+func (i *Installer) HasMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (bool, error) {
 	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
 	if !ok {
 		return false, errors.ErrConfigInvalid
 	}
 
-	_, exists := claudeCodeConfig.McpServers[installer.ServerName]
+	serverName := installer.GetServerName(vertical)
+	_, exists := claudeCodeConfig.McpServers[serverName]
 	return exists, nil
 }
 
-func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) (*installer.McpServer, error) {
+func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}, vertical installer.VerticalType) (*installer.McpServer, error) {
 	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	serverConfig, exists := claudeCodeConfig.McpServers[installer.ServerName]
+	serverName := installer.GetServerName(vertical)
+	serverConfig, exists := claudeCodeConfig.McpServers[serverName]
 	if !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
 	return &installer.McpServer{
-		Name:        installer.ServerName,
+		Name:        serverName,
 		Command:     serverConfig.Command,
 		Args:        serverConfig.Args,
 		Environment: serverConfig.Env,
 	}, nil
 }
 
-func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (string, error) {
+func (i *Installer) FormatConfig(ctx context.Context, config interface{}, onlyKirha bool) (string, error) {
 	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
 	if !ok {
 		return "", errors.ErrConfigInvalid
@@ -266,8 +271,50 @@ func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (strin
 		return "No MCP servers configured", nil
 	}
 
-	var result string
+	// Separate servers into Kirha and Other categories
+	kirhaServers := make(map[string]McpServerConfig)
+	otherServers := make(map[string]McpServerConfig)
+
 	for name, server := range claudeCodeConfig.McpServers {
+		if strings.HasPrefix(name, "kirha-") {
+			kirhaServers[name] = server
+		} else {
+			otherServers[name] = server
+		}
+	}
+
+	// If onlyKirha is true, only show Kirha servers
+	if onlyKirha {
+		if len(kirhaServers) == 0 {
+			return "No Kirha MCP servers configured", nil
+		}
+		return i.formatServerSection("Kirha MCP Servers", kirhaServers), nil
+	}
+
+	// Format both sections
+	var result string
+
+	// Add Kirha section if any exist
+	if len(kirhaServers) > 0 {
+		result += i.formatServerSection("Kirha MCP Servers", kirhaServers)
+	}
+
+	// Add Other section if any exist
+	if len(otherServers) > 0 {
+		if len(kirhaServers) > 0 {
+			result += "\n"
+		}
+		result += i.formatServerSection("Other MCP Servers", otherServers)
+	}
+
+	return result, nil
+}
+
+func (i *Installer) formatServerSection(sectionTitle string, servers map[string]McpServerConfig) string {
+	var result string
+	result += fmt.Sprintf("=== %s ===\n\n", sectionTitle)
+
+	for name, server := range servers {
 		result += fmt.Sprintf("Server: %s\n", name)
 		result += fmt.Sprintf("  Command: %s\n", server.Command)
 		result += fmt.Sprintf("  Args: %v\n", server.Args)
@@ -284,5 +331,26 @@ func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (strin
 		result += "\n"
 	}
 
-	return result, nil
+	return result
+}
+
+func (i *Installer) FormatSpecificServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (string, error) {
+	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+	if !ok {
+		return "", errors.ErrConfigInvalid
+	}
+
+	serverName := installer.GetServerName(vertical)
+	serverConfig, exists := claudeCodeConfig.McpServers[serverName]
+	if !exists {
+		return "", errors.ErrServerNotFound
+	}
+
+	// Create a map with only the specific server
+	specificServer := map[string]McpServerConfig{
+		serverName: serverConfig,
+	}
+
+	// Format just this one server
+	return i.formatServerSection(fmt.Sprintf("Kirha MCP Server (%s)", vertical), specificServer), nil
 }

@@ -6,6 +6,26 @@ const (
 	ServerName = "kirha"
 )
 
+type VerticalType string
+
+const (
+	VerticalTypeCrypto VerticalType = "crypto"
+	VerticalTypeUtils  VerticalType = "utils"
+)
+
+func (v VerticalType) Valid() bool {
+	switch v {
+	case VerticalTypeCrypto, VerticalTypeUtils:
+		return true
+	default:
+		return false
+	}
+}
+
+func (v VerticalType) String() string {
+	return string(v)
+}
+
 type ClientType string
 
 const (
@@ -31,11 +51,13 @@ type Config struct {
 	UpdatedAt time.Time
 
 	Client     ClientType
+	Vertical   VerticalType
 	ApiKey     string
 	ConfigPath string
 	Operation  OperationType
 	DryRun     bool
 	Verbose    bool
+	OnlyKirha  bool
 }
 
 type McpServer struct {
@@ -45,15 +67,21 @@ type McpServer struct {
 	Environment map[string]string
 }
 
-func NewKirhaMcpServer(apiKey string) *McpServer {
+func NewKirhaMcpServer(apiKey string, vertical VerticalType) *McpServer {
+	serverName := ServerName + "-" + vertical.String()
 	return &McpServer{
-		Name:    ServerName,
+		Name:    serverName,
 		Command: "npx",
 		Args:    []string{"-y", "@kirha/mcp-server"},
 		Environment: map[string]string{
-			"KIRHA_API_KEY": apiKey,
+			"KIRHA_API_KEY":   apiKey,
+			"KIRHA_VERTICAL": vertical.String(),
 		},
 	}
+}
+
+func GetServerName(vertical VerticalType) string {
+	return ServerName + "-" + vertical.String()
 }
 
 type InstallResult struct {

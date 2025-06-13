@@ -8,7 +8,9 @@ import (
 func NewCmdShow() *cobra.Command {
 	var (
 		client     string
+		vertical   string
 		configPath string
+		onlyKirha  bool
 		verbose    bool
 	)
 
@@ -19,24 +21,29 @@ func NewCmdShow() *cobra.Command {
 
 This command will show the existing MCP server configuration, including any Kirha MCP servers
 and other MCP servers that are configured. API keys will be masked for security.`,
-		Example: `  # Show configuration for Claude Desktop
+		Example: `  # Show all MCP server configurations for Claude Desktop
   mcp-installer show --client claude
 
-  # Show configuration for Docker
-  mcp-installer show --client docker
+  # Show only crypto vertical configuration for Docker
+  mcp-installer show --client docker --vertical crypto
 
-  # Show configuration for VS Code with verbose output
+  # Show only Kirha MCP servers for Claude Desktop
+  mcp-installer show --client claude --only-kirha
+
+  # Show all configurations for VS Code with verbose output
   mcp-installer show --client vscode --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationShow, client, "", configPath, false, verbose)
+			return runOperation(cmd, installer.OperationShow, client, vertical, "", configPath, false, verbose, onlyKirha)
 		},
 	}
 
 	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to show configuration for (required)")
+	cmd.Flags().StringVar(&vertical, "vertical", "", "Vertical to show (crypto, utils) (optional - shows all if not specified)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
+	cmd.Flags().BoolVar(&onlyKirha, "only-kirha", false, "Show only Kirha MCP servers")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 
-	cmd.MarkFlagRequired("client")
+	_ = cmd.MarkFlagRequired("client")
 
 	return cmd
 }

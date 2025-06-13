@@ -28,10 +28,12 @@ func TestClientType_String(t *testing.T) {
 
 func TestNewKirhaMcpServer(t *testing.T) {
 	apiKey := "test-api-key-123"
-	server := NewKirhaMcpServer(apiKey)
+	vertical := VerticalTypeCrypto
+	server := NewKirhaMcpServer(apiKey, vertical)
 
-	if server.Name != "kirha" {
-		t.Errorf("NewKirhaMcpServer().Name = %v, want %v", server.Name, "kirha")
+	expectedName := "kirha-crypto"
+	if server.Name != expectedName {
+		t.Errorf("NewKirhaMcpServer().Name = %v, want %v", server.Name, expectedName)
 	}
 
 	if server.Command != "npx" {
@@ -51,6 +53,10 @@ func TestNewKirhaMcpServer(t *testing.T) {
 
 	if server.Environment["KIRHA_API_KEY"] != apiKey {
 		t.Errorf("NewKirhaMcpServer().Environment[KIRHA_API_KEY] = %v, want %v", server.Environment["KIRHA_API_KEY"], apiKey)
+	}
+
+	if server.Environment["KIRHA_VERTICAL"] != vertical.String() {
+		t.Errorf("NewKirhaMcpServer().Environment[KIRHA_VERTICAL] = %v, want %v", server.Environment["KIRHA_VERTICAL"], vertical.String())
 	}
 }
 

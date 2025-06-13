@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
+	"github.com/kirha-ai/mcp-installer/internal/core/ports"
 )
 
 type MockInstaller struct {
@@ -44,7 +45,7 @@ func (m *MockInstaller) AddMcpServer(ctx context.Context, config interface{}, se
 	return config, nil
 }
 
-func (m *MockInstaller) RemoveMcpServer(ctx context.Context, config interface{}) (interface{}, error) {
+func (m *MockInstaller) RemoveMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (interface{}, error) {
 	return config, nil
 }
 
@@ -74,27 +75,42 @@ func (m *MockInstaller) IsClientRunning(ctx context.Context) (bool, error) {
 	return m.isRunning, nil
 }
 
-func (m *MockInstaller) HasMcpServer(ctx context.Context, config interface{}) (bool, error) {
+func (m *MockInstaller) HasMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (bool, error) {
 	return m.hasServer, nil
 }
 
-func (m *MockInstaller) GetMcpServerConfig(ctx context.Context, config interface{}) (*installer.McpServer, error) {
+func (m *MockInstaller) GetMcpServerConfig(ctx context.Context, config interface{}, vertical installer.VerticalType) (*installer.McpServer, error) {
 	if !m.hasServer {
 		return nil, errors.New("server not found")
 	}
 	return &installer.McpServer{
-		Name:        "kirha",
+		Name:        "kirha-" + vertical.String(),
 		Command:     "npx",
 		Args:        []string{"-y", "@kirha/mcp-server"},
-		Environment: map[string]string{"KIRHA_API_KEY": "test-key"},
+		Environment: map[string]string{"KIRHA_API_KEY": "test-key", "KIRHA_VERTICAL": vertical.String()},
 	}, nil
 }
 
-func (m *MockInstaller) FormatConfig(ctx context.Context, config interface{}) (string, error) {
+func (m *MockInstaller) FormatConfig(ctx context.Context, config interface{}, onlyKirha bool) (string, error) {
 	if !m.hasServer {
 		return "No MCP servers configured", nil
 	}
-	return "Server: kirha\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****", nil
+	return "Server: kirha-crypto\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****", nil
+}
+
+func (m *MockInstaller) FormatSpecificServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (string, error) {
+	if !m.hasServer {
+		return "No MCP servers configured", nil
+	}
+	return "Server: kirha-" + vertical.String() + "\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****", nil
+}
+
+type MockFactory struct {
+	installer ports.Installer
+}
+
+func (f *MockFactory) GetInstaller(ctx context.Context, clientType installer.ClientType) (ports.Installer, error) {
+	return f.installer, nil
 }
 
 func TestApplication_Execute_Install_Success(t *testing.T) {
@@ -104,10 +120,12 @@ func TestApplication_Execute_Install_Success(t *testing.T) {
 		hasServer:  false, // No existing server for install
 	}
 
-	app := New(mockInstaller)
+	mockFactory := &MockFactory{installer: mockInstaller}
+	app := New(mockFactory)
 
 	config := &installer.Config{
 		Client:    installer.ClientTypeClaude,
+		Vertical:  installer.VerticalTypeCrypto,
 		ApiKey:    "valid-api-key-123",
 		Operation: installer.OperationInstall,
 		DryRun:    false,
@@ -135,7 +153,8 @@ func TestApplication_Execute_Show_Success(t *testing.T) {
 		hasServer:  true, // Has server for show
 	}
 
-	app := New(mockInstaller)
+	mockFactory := &MockFactory{installer: mockInstaller}
+	app := New(mockFactory)
 
 	config := &installer.Config{
 		Client:    installer.ClientTypeClaude,
@@ -154,7 +173,7 @@ func TestApplication_Execute_Show_Success(t *testing.T) {
 		t.Errorf("Execute().Success = %v, want true", result.Success)
 	}
 
-	expectedMessage := "MCP configuration for claude:\n\nServer: kirha\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****"
+	expectedMessage := "MCP configuration for claude:\n\nServer: kirha-crypto\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****"
 	if result.Message != expectedMessage {
 		t.Errorf("Execute().Message = %v, want %v", result.Message, expectedMessage)
 	}
@@ -166,7 +185,8 @@ func TestApplication_Execute_Show_NoServer(t *testing.T) {
 		hasServer:  false, // No server for show
 	}
 
-	app := New(mockInstaller)
+	mockFactory := &MockFactory{installer: mockInstaller}
+	app := New(mockFactory)
 
 	config := &installer.Config{
 		Client:    installer.ClientTypeClaude,
