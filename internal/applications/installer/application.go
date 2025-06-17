@@ -429,13 +429,8 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 			return nil, err
 		}
 
-		hasUtils, err := clientInstaller.HasMcpServer(ctx, currentConfig, installer.VerticalTypeUtils)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to check if utils server exists", logger.Error(err))
-			return nil, err
-		}
-
-		hasServer = hasCrypto || hasUtils
+		// TODO : Add more verticals as needed
+		hasServer = hasCrypto
 	}
 
 	// Handle vertical filtering by adding a new method to the interface

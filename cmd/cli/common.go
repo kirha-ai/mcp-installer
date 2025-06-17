@@ -99,10 +99,7 @@ func validateVertical(vertical string) (installer.VerticalType, error) {
 	switch strings.ToLower(vertical) {
 	case "crypto":
 		return installer.VerticalTypeCrypto, nil
-	case "utils":
-		return installer.VerticalTypeUtils, nil
 	default:
 		return "", domainErrors.ErrUnsupportedVertical
 	}
 }
-

@@ -40,7 +40,7 @@ func TestNewKirhaMcpServer(t *testing.T) {
 		t.Errorf("NewKirhaMcpServer().Command = %v, want %v", server.Command, "npx")
 	}
 
-	expectedArgs := []string{"-y", "@kirha/mcp-server"}
+	expectedArgs := []string{"-y", "@kirha/mcp-server", "stdio"}
 	if len(server.Args) != len(expectedArgs) {
 		t.Errorf("NewKirhaMcpServer().Args length = %v, want %v", len(server.Args), len(expectedArgs))
 	}
@@ -55,8 +55,9 @@ func TestNewKirhaMcpServer(t *testing.T) {
 		t.Errorf("NewKirhaMcpServer().Environment[KIRHA_API_KEY] = %v, want %v", server.Environment["KIRHA_API_KEY"], apiKey)
 	}
 
-	if server.Environment["KIRHA_VERTICAL"] != vertical.String() {
-		t.Errorf("NewKirhaMcpServer().Environment[KIRHA_VERTICAL] = %v, want %v", server.Environment["KIRHA_VERTICAL"], vertical.String())
+	expectedVerticalID := VerticalIDs[vertical]
+	if server.Environment["KIRHA_VERTICAL"] != expectedVerticalID {
+		t.Errorf("NewKirhaMcpServer().Environment[KIRHA_VERTICAL] = %v, want %v", server.Environment["KIRHA_VERTICAL"], expectedVerticalID)
 	}
 }
 

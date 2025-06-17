@@ -10,12 +10,15 @@ type VerticalType string
 
 const (
 	VerticalTypeCrypto VerticalType = "crypto"
-	VerticalTypeUtils  VerticalType = "utils"
 )
+
+var VerticalIDs = map[VerticalType]string{
+	VerticalTypeCrypto: "cfdbb30b-e0e5-42d3-91c4-baca44234e36",
+}
 
 func (v VerticalType) Valid() bool {
 	switch v {
-	case VerticalTypeCrypto, VerticalTypeUtils:
+	case VerticalTypeCrypto:
 		return true
 	default:
 		return false
@@ -72,10 +75,10 @@ func NewKirhaMcpServer(apiKey string, vertical VerticalType) *McpServer {
 	return &McpServer{
 		Name:    serverName,
 		Command: "npx",
-		Args:    []string{"-y", "@kirha/mcp-server"},
+		Args:    []string{"-y", "@kirha/mcp-server", "stdio"},
 		Environment: map[string]string{
-			"KIRHA_API_KEY":   apiKey,
-			"KIRHA_VERTICAL": vertical.String(),
+			"KIRHA_API_KEY":  apiKey,
+			"KIRHA_VERTICAL": VerticalIDs[vertical],
 		},
 	}
 }

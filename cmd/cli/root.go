@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 func NewCmdRoot() *cobra.Command {
+	var versionFlag bool
+
 	cmd := &cobra.Command{
 		Use:   "mcp-installer",
 		Short: "MCP Installer - Install Kirha MCP server for various development environments",
@@ -33,13 +37,24 @@ Supported clients:
   mcp-installer install --client vscode --key your-api-key-here --dry-run`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if versionFlag {
+				fmt.Printf("Kirha MCP Gateway version %s\n", Version)
+				os.Exit(0)
+			}
+
+			// Check for updates on every command execution
+			checkForUpdates()
+		},
 	}
+	cmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "display version information")
 
 	cmd.AddCommand(NewCmdInstall())
 	cmd.AddCommand(NewCmdUpdate())
 	cmd.AddCommand(NewCmdRemove())
 	cmd.AddCommand(NewCmdShow())
 	cmd.AddCommand(NewCmdVersion())
+	cmd.AddCommand(NewCmdUpdateVersion())
 
 	return cmd
 }
