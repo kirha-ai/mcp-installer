@@ -21,6 +21,7 @@
 !pkg/npm/*
 !Makefile
 !scripts/*
+!package.json
 
 !DOCS.md
 !README.md

@@ -1,0 +1,52 @@
+{
+  "name": "@kirha/mcp-installer",
+  "version": "0.0.1",
+  "description": "The MCP Installer is a CLI tool for installing and managing the Kirha MCP Gateway across various LLM interfaces.",
+  "main": "bin/kirha-mcp-installer.js",
+  "bin": {
+    "kirha-mcp-installer": "./bin/kirha-mcp-installer.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "test": "echo \"Tests run in Go environment. Use 'go test ./...' to run tests.\""
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "kirha",
+    "ai",
+    "tools",
+    "installer",
+    "proxy",
+    "server"
+  ],
+  "author": "Kirha AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://go.kirha.ai/mcp-installer"
+  },
+  "bugs": {
+    "url": "https://go.kirha.ai/mcp-installer/issues"
+  },
+  "homepage": "https://go.kirha.ai/mcp-installer#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "files": [
+    "bin/kirha-mcp-installer.js",
+    "scripts/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ]
+}
