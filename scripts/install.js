@@ -6,7 +6,7 @@ const os = require('os');
 const https = require('https');
 const crypto = require('crypto');
 
-const GITHUB_REPO = 'kirha-ai/kirha-mcp-installer';
+const GITHUB_REPO = 'kirha-ai/mcp-installer';
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
 function getBinaryInfo() {
