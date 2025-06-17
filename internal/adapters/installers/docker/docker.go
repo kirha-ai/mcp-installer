@@ -96,7 +96,7 @@ func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server
 				Image: "node:18-alpine",
 				Command: []string{
 					"sh", "-c",
-					fmt.Sprintf("npx -y @%s/mcp-server", server.Name),
+					fmt.Sprintf("npx -y @%s/mcp-gateway", server.Name),
 				},
 				Environment: server.Environment,
 				Restart:     "unless-stopped",
@@ -323,7 +323,7 @@ func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}, 
 	mcpServer := &installer.McpServer{
 		Name:        serverName,
 		Command:     "npx",
-		Args:        []string{"-y", fmt.Sprintf("@%s/mcp-server", serverName)},
+		Args:        []string{"-y", fmt.Sprintf("@%s/mcp-gateway", serverName)},
 		Environment: service.Environment,
 	}
 

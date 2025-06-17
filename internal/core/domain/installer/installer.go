@@ -75,7 +75,7 @@ func NewKirhaMcpServer(apiKey string, vertical VerticalType) *McpServer {
 	return &McpServer{
 		Name:    serverName,
 		Command: "npx",
-		Args:    []string{"-y", "@kirha/mcp-server", "stdio"},
+		Args:    []string{"-y", "@kirha/mcp-gateway", "stdio"},
 		Environment: map[string]string{
 			"KIRHA_API_KEY":  apiKey,
 			"KIRHA_VERTICAL": VerticalIDs[vertical],

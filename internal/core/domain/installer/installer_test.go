@@ -40,7 +40,7 @@ func TestNewKirhaMcpServer(t *testing.T) {
 		t.Errorf("NewKirhaMcpServer().Command = %v, want %v", server.Command, "npx")
 	}
 
-	expectedArgs := []string{"-y", "@kirha/mcp-server", "stdio"}
+	expectedArgs := []string{"-y", "@kirha/mcp-gateway", "stdio"}
 	if len(server.Args) != len(expectedArgs) {
 		t.Errorf("NewKirhaMcpServer().Args length = %v, want %v", len(server.Args), len(expectedArgs))
 	}

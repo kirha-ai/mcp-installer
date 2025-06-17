@@ -86,7 +86,7 @@ func (m *MockInstaller) GetMcpServerConfig(ctx context.Context, config interface
 	return &installer.McpServer{
 		Name:        "kirha-" + vertical.String(),
 		Command:     "npx",
-		Args:        []string{"-y", "@kirha/mcp-server"},
+		Args:        []string{"-y", "@kirha/mcp-gateway"},
 		Environment: map[string]string{"KIRHA_API_KEY": "test-key", "KIRHA_VERTICAL": vertical.String()},
 	}, nil
 }
@@ -95,14 +95,14 @@ func (m *MockInstaller) FormatConfig(ctx context.Context, config interface{}, on
 	if !m.hasServer {
 		return "No MCP servers configured", nil
 	}
-	return "Server: kirha-crypto\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****", nil
+	return "Server: kirha-crypto\n  Command: npx\n  Args: [-y @kirha/mcp-gateway]\n  Environment:\n    KIRHA_API_KEY: test****", nil
 }
 
 func (m *MockInstaller) FormatSpecificServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (string, error) {
 	if !m.hasServer {
 		return "No MCP servers configured", nil
 	}
-	return "Server: kirha-" + vertical.String() + "\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****", nil
+	return "Server: kirha-" + vertical.String() + "\n  Command: npx\n  Args: [-y @kirha/mcp-gateway]\n  Environment:\n    KIRHA_API_KEY: test****", nil
 }
 
 type MockFactory struct {
@@ -173,7 +173,7 @@ func TestApplication_Execute_Show_Success(t *testing.T) {
 		t.Errorf("Execute().Success = %v, want true", result.Success)
 	}
 
-	expectedMessage := "MCP configuration for claude:\n\nServer: kirha-crypto\n  Command: npx\n  Args: [-y @kirha/mcp-server]\n  Environment:\n    KIRHA_API_KEY: test****"
+	expectedMessage := "MCP configuration for claude:\n\nServer: kirha-crypto\n  Command: npx\n  Args: [-y @kirha/mcp-gateway]\n  Environment:\n    KIRHA_API_KEY: test****"
 	if result.Message != expectedMessage {
 		t.Errorf("Execute().Message = %v, want %v", result.Message, expectedMessage)
 	}
