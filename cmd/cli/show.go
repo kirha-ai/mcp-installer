@@ -41,7 +41,7 @@ and other MCP servers that are configured. API keys will be masked for security.
 	cmd.Flags().StringVar(&vertical, "vertical", "", "Vertical to show (crypto, utils) (optional - shows all if not specified)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&onlyKirha, "only-kirha", false, "Show only Kirha MCP servers")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 
 	_ = cmd.MarkFlagRequired("client")
 

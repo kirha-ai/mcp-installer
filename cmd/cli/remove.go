@@ -38,7 +38,7 @@ If the server doesn't exist, the command will fail with an appropriate message.`
 	cmd.Flags().StringVar(&vertical, "vertical", "", "Vertical to remove (crypto, utils) (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 
 	_ = cmd.MarkFlagRequired("client")
 	_ = cmd.MarkFlagRequired("vertical")

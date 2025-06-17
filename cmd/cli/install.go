@@ -40,7 +40,7 @@ If the server already exists, the command will fail with a suggestion to use 'up
 	cmd.Flags().StringVarP(&apiKey, "key", "k", "", "API key for Kirha MCP server (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 
 	_ = cmd.MarkFlagRequired("client")
 	_ = cmd.MarkFlagRequired("vertical")
