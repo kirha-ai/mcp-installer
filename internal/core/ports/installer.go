@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
+	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
 )
 
 type Installer interface {

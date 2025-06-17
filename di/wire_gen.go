@@ -7,8 +7,8 @@
 package di
 
 import (
-	"github.com/kirha-ai/mcp-installer/internal/adapters/factories/installer"
-	"github.com/kirha-ai/mcp-installer/internal/applications/installer"
+	"go.kirha.ai/mcp-installer/internal/adapters/factories/installer"
+	"go.kirha.ai/mcp-installer/internal/applications/installer"
 )
 
 // Injectors from wire.go:

@@ -9,11 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kirha-ai/logger"
-	"github.com/kirha-ai/mcp-installer/internal/adapters/installers"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/errors"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
-	"github.com/kirha-ai/mcp-installer/pkg/security"
+	"go.kirha.ai/mcp-installer/internal/adapters/installers"
+	"go.kirha.ai/mcp-installer/internal/core/domain/errors"
+	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
+	"go.kirha.ai/mcp-installer/pkg/security"
 )
 
 const (
@@ -46,13 +45,11 @@ type VolumeConfig struct {
 
 type Installer struct {
 	*installers.BaseInstaller
-	logger *slog.Logger
 }
 
 func New() *Installer {
 	return &Installer{
 		BaseInstaller: installers.NewBaseInstaller(),
-		logger:        logger.New("docker_installer"),
 	}
 }
 
@@ -72,7 +69,7 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 
 	// For Docker, we'll create a new docker-compose.yml if it doesn't exist
 	if !i.FileExists(path) {
-		i.logger.InfoContext(ctx, "docker-compose.yml not found, will create new one", slog.String("path", path))
+		slog.InfoContext(ctx, "docker-compose.yml not found, will create new one", slog.String("path", path))
 		return &DockerComposeConfig{
 			Version:  "3.8",
 			Services: make(map[string]ServiceConfig),
@@ -111,7 +108,7 @@ func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server
 		},
 	}
 
-	i.logger.InfoContext(ctx, "created Docker Compose configuration for MCP server")
+	slog.InfoContext(ctx, "created Docker Compose configuration for MCP server")
 
 	return dockerConfig, nil
 }
@@ -153,7 +150,7 @@ func (i *Installer) SaveConfig(ctx context.Context, config interface{}) error {
 	// If docker-compose.yml already exists, create docker-compose.mcp.yml instead
 	if i.FileExists(path) {
 		path = filepath.Join(filepath.Dir(path), "docker-compose.mcp.yml")
-		i.logger.InfoContext(ctx, "existing docker-compose.yml found, creating docker-compose.mcp.yml",
+		slog.InfoContext(ctx, "existing docker-compose.yml found, creating docker-compose.mcp.yml",
 			slog.String("path", path))
 	}
 
@@ -226,7 +223,7 @@ func (i *Installer) BackupConfig(ctx context.Context) (string, error) {
 		return i.CreateBackup(path)
 	}
 
-	i.logger.InfoContext(ctx, "no existing docker-compose files to backup")
+	slog.InfoContext(ctx, "no existing docker-compose files to backup")
 	return "", nil
 }
 
@@ -270,7 +267,7 @@ func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 	cmd := exec.CommandContext(ctx, "docker", "info")
 	err := cmd.Run()
 	if err != nil {
-		i.logger.InfoContext(ctx, "Docker daemon not running or not installed")
+		slog.InfoContext(ctx, "Docker daemon not running or not installed")
 		return false, nil
 	}
 

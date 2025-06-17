@@ -2,16 +2,16 @@ package installerfactory
 
 import (
 	"context"
-	
-	"github.com/kirha-ai/mcp-installer/internal/adapters/installers/claude"
-	claudecode "github.com/kirha-ai/mcp-installer/internal/adapters/installers/claude-code"
-	"github.com/kirha-ai/mcp-installer/internal/adapters/installers/cursor"
-	"github.com/kirha-ai/mcp-installer/internal/adapters/installers/docker"
-	"github.com/kirha-ai/mcp-installer/internal/adapters/installers/vscode"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/errors"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
-	"github.com/kirha-ai/mcp-installer/internal/core/ports"
-	"github.com/kirha-ai/mcp-installer/internal/core/ports/factories"
+
+	"go.kirha.ai/mcp-installer/internal/adapters/installers/claude"
+	claudecode "go.kirha.ai/mcp-installer/internal/adapters/installers/claude-code"
+	"go.kirha.ai/mcp-installer/internal/adapters/installers/cursor"
+	"go.kirha.ai/mcp-installer/internal/adapters/installers/docker"
+	"go.kirha.ai/mcp-installer/internal/adapters/installers/vscode"
+	"go.kirha.ai/mcp-installer/internal/core/domain/errors"
+	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
+	"go.kirha.ai/mcp-installer/internal/core/ports"
+	"go.kirha.ai/mcp-installer/internal/core/ports/factories"
 )
 
 type Factory struct {

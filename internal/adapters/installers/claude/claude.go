@@ -8,11 +8,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/kirha-ai/logger"
-	"github.com/kirha-ai/mcp-installer/internal/adapters/installers"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/errors"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
-	"github.com/kirha-ai/mcp-installer/pkg/security"
+	"go.kirha.ai/mcp-installer/internal/adapters/installers"
+	"go.kirha.ai/mcp-installer/internal/core/domain/errors"
+	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
+	"go.kirha.ai/mcp-installer/pkg/security"
 )
 
 const (
@@ -33,13 +32,11 @@ type McpServerConfig struct {
 
 type Installer struct {
 	*installers.BaseInstaller
-	logger *slog.Logger
 }
 
 func New() *Installer {
 	return &Installer{
 		BaseInstaller: installers.NewBaseInstaller(),
-		logger:        logger.New("claude_installer"),
 	}
 }
 
@@ -54,7 +51,7 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 	}
 
 	if !i.FileExists(path) {
-		i.logger.InfoContext(ctx, "config file not found, creating new one", slog.String("path", path))
+		slog.InfoContext(ctx, "config file not found, creating new one", slog.String("path", path))
 		return &ClaudeConfig{
 			McpServers: make(map[string]McpServerConfig),
 		}, nil
@@ -120,7 +117,7 @@ func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server
 		Env:     server.Environment,
 	}
 
-	i.logger.InfoContext(ctx, "added MCP server to configuration",
+	slog.InfoContext(ctx, "added MCP server to configuration",
 		slog.String("server", server.Name))
 
 	return claudeConfig, nil
@@ -139,7 +136,7 @@ func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}, ver
 
 	delete(claudeConfig.McpServers, serverName)
 
-	i.logger.InfoContext(ctx, "removed MCP server from configuration")
+	slog.InfoContext(ctx, "removed MCP server from configuration")
 
 	return claudeConfig, nil
 }
@@ -169,7 +166,7 @@ func (i *Installer) BackupConfig(ctx context.Context) (string, error) {
 	}
 
 	if !i.FileExists(path) {
-		i.logger.InfoContext(ctx, "no existing config to backup")
+		slog.InfoContext(ctx, "no existing config to backup")
 		return "", nil
 	}
 

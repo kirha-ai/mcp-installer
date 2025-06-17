@@ -1,7 +1,7 @@
 # MCP Installer
 
-[![Build Status](https://github.com/kirha-ai/mcp-installer/workflows/Build%20and%20Test/badge.svg)](https://github.com/kirha-ai/mcp-installer/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kirha-ai/mcp-installer)](https://goreportcard.com/report/github.com/kirha-ai/mcp-installer)
+[![Build Status](https://go.kirha.ai/mcp-installer/workflows/Build%20and%20Test/badge.svg)](https://go.kirha.ai/mcp-installer/actions)
+[![Go Report Card](https://goreportcard.com/badge/go.kirha.ai/mcp-installer)](https://goreportcard.com/report/go.kirha.ai/mcp-installer)
 [![NPM Version](https://img.shields.io/npm/v/@kirha/mcp-installer)](https://www.npmjs.com/package/@kirha/mcp-installer)
 
 MCP Installer is a CLI tool that simplifies the installation of Kirha MCP (Model Context Protocol) server across multiple development environments.
@@ -25,7 +25,7 @@ npx @kirha/mcp-installer install --client <client> --key <api-key>
 
 ### Direct Download
 
-Download the latest binary from the [releases page](https://github.com/kirha-ai/mcp-installer/releases).
+Download the latest binary from the [releases page](https://go.kirha.ai/mcp-installer/releases).
 
 ## Usage
 
@@ -115,7 +115,7 @@ npx @kirha/mcp-installer show --client vscode --verbose
 
 ```bash
 # Clone the repository
-git clone https://github.com/kirha-ai/mcp-installer.git
+git clone https://go.kirha.ai/mcp-installer.git
 cd mcp-installer
 
 # Install dependencies

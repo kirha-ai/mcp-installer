@@ -6,22 +6,19 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/kirha-ai/logger"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/errors"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
-	"github.com/kirha-ai/mcp-installer/internal/core/ports"
-	"github.com/kirha-ai/mcp-installer/internal/core/ports/factories"
+	"go.kirha.ai/mcp-installer/internal/core/domain/errors"
+	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
+	"go.kirha.ai/mcp-installer/internal/core/ports"
+	"go.kirha.ai/mcp-installer/internal/core/ports/factories"
 )
 
 type Application struct {
 	installerFactory factories.InstallerFactory
-	logger           *slog.Logger
 }
 
 func New(installerFactory factories.InstallerFactory) *Application {
 	return &Application{
 		installerFactory: installerFactory,
-		logger:           logger.New("installer_application"),
 	}
 }
 
@@ -44,14 +41,14 @@ func (a *Application) Execute(ctx context.Context, config *installer.Config) (*i
 			Message:    showResult.Message,
 		}, nil
 	default:
-		a.logger.ErrorContext(ctx, "unknown operation requested",
+		slog.ErrorContext(ctx, "unknown operation requested",
 			slog.String("operation", string(config.Operation)))
 		return nil, errors.ErrUnknownOperation
 	}
 }
 
 func (a *Application) install(ctx context.Context, config *installer.Config) (*installer.InstallResult, error) {
-	a.logger.InfoContext(ctx, "starting installation",
+	slog.InfoContext(ctx, "starting installation",
 		slog.String("client", string(config.Client)),
 		slog.Bool("dry_run", config.DryRun))
 
@@ -61,47 +58,47 @@ func (a *Application) install(ctx context.Context, config *installer.Config) (*i
 
 	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get installer for client",
-			logger.Error(err),
+		slog.ErrorContext(ctx, "failed to get installer for client",
+			slog.String("error", err.Error()),
 			slog.String("client", string(config.Client)))
 		return nil, err
 	}
 
 	running, err := clientInstaller.IsClientRunning(ctx)
 	if err != nil {
-		a.logger.WarnContext(ctx, "failed to check if client is running", logger.Error(err))
+		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
 	}
 	if running && !config.DryRun {
-		a.logger.WarnContext(ctx, "client is currently running",
+		slog.WarnContext(ctx, "client is currently running",
 			slog.String("client", string(config.Client)))
 		return nil, errors.ErrClientRunning
 	}
 
 	configPath, err := clientInstaller.GetConfigPath()
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get config path", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to get config path", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	currentConfig, err := clientInstaller.LoadConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to load config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to load config", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if exists {
-		a.logger.ErrorContext(ctx, "MCP server already exists, use 'update' command to modify it")
+		slog.ErrorContext(ctx, "MCP server already exists, use 'update' command to modify it")
 		return nil, errors.ErrServerExistsUseUpdate
 	}
 
 	if config.DryRun {
-		a.logger.InfoContext(ctx, "dry run - would install server",
+		slog.InfoContext(ctx, "dry run - would install server",
 			slog.String("path", configPath))
 		return &installer.InstallResult{
 			Success:    true,
@@ -114,7 +111,7 @@ func (a *Application) install(ctx context.Context, config *installer.Config) (*i
 }
 
 func (a *Application) update(ctx context.Context, config *installer.Config) (*installer.InstallResult, error) {
-	a.logger.InfoContext(ctx, "starting update",
+	slog.InfoContext(ctx, "starting update",
 		slog.String("client", string(config.Client)),
 		slog.Bool("dry_run", config.DryRun))
 
@@ -124,47 +121,47 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 
 	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get installer for client",
-			logger.Error(err),
+		slog.ErrorContext(ctx, "failed to get installer for client",
+			slog.String("error", err.Error()),
 			slog.String("client", string(config.Client)))
 		return nil, err
 	}
 
 	running, err := clientInstaller.IsClientRunning(ctx)
 	if err != nil {
-		a.logger.WarnContext(ctx, "failed to check if client is running", logger.Error(err))
+		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
 	}
 	if running && !config.DryRun {
-		a.logger.WarnContext(ctx, "client is currently running",
+		slog.WarnContext(ctx, "client is currently running",
 			slog.String("client", string(config.Client)))
 		return nil, errors.ErrClientRunning
 	}
 
 	configPath, err := clientInstaller.GetConfigPath()
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get config path", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to get config path", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	currentConfig, err := clientInstaller.LoadConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to load config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to load config", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if !exists {
-		a.logger.ErrorContext(ctx, "MCP server not found, use 'install' command to add it")
+		slog.ErrorContext(ctx, "MCP server not found, use 'install' command to add it")
 		return nil, errors.ErrServerNotFoundForUpdate
 	}
 
 	if config.DryRun {
-		a.logger.InfoContext(ctx, "dry run - would update server",
+		slog.InfoContext(ctx, "dry run - would update server",
 			slog.String("path", configPath))
 		return &installer.InstallResult{
 			Success:    true,
@@ -175,7 +172,7 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 
 	configWithoutServer, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to remove existing server", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to remove existing server", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -183,53 +180,53 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 }
 
 func (a *Application) remove(ctx context.Context, config *installer.Config) (*installer.InstallResult, error) {
-	a.logger.InfoContext(ctx, "starting removal",
+	slog.InfoContext(ctx, "starting removal",
 		slog.String("client", string(config.Client)),
 		slog.Bool("dry_run", config.DryRun))
 
 	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get installer for client",
-			logger.Error(err),
+		slog.ErrorContext(ctx, "failed to get installer for client",
+			slog.String("error", err.Error()),
 			slog.String("client", string(config.Client)))
 		return nil, err
 	}
 
 	running, err := clientInstaller.IsClientRunning(ctx)
 	if err != nil {
-		a.logger.WarnContext(ctx, "failed to check if client is running", logger.Error(err))
+		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
 	}
 	if running && !config.DryRun {
-		a.logger.WarnContext(ctx, "client is currently running",
+		slog.WarnContext(ctx, "client is currently running",
 			slog.String("client", string(config.Client)))
 		return nil, errors.ErrClientRunning
 	}
 
 	configPath, err := clientInstaller.GetConfigPath()
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get config path", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to get config path", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	currentConfig, err := clientInstaller.LoadConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to load config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to load config", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if !exists {
-		a.logger.ErrorContext(ctx, "MCP server not found, nothing to remove")
+		slog.ErrorContext(ctx, "MCP server not found, nothing to remove")
 		return nil, errors.ErrServerNotFoundForRemove
 	}
 
 	if config.DryRun {
-		a.logger.InfoContext(ctx, "dry run - would remove server",
+		slog.InfoContext(ctx, "dry run - would remove server",
 			slog.String("path", configPath))
 		return &installer.InstallResult{
 			Success:    true,
@@ -240,16 +237,16 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 
 	backupPath, err := clientInstaller.BackupConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to create backup", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to create backup", slog.String("error", err.Error()))
 	}
 
 	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to remove MCP server", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to remove MCP server", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -257,11 +254,11 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 	}
 
 	if err := clientInstaller.SaveConfig(ctx, updatedConfig); err != nil {
-		a.logger.ErrorContext(ctx, "failed to save config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to save config", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -273,7 +270,7 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 		message += ". Please restart the application to apply changes."
 	}
 
-	a.logger.InfoContext(ctx, "removal completed successfully",
+	slog.InfoContext(ctx, "removal completed successfully",
 		slog.String("config_path", configPath),
 		slog.String("backup_path", backupPath))
 
@@ -288,18 +285,18 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 func (a *Application) performInstallOrUpdate(ctx context.Context, config *installer.Config, currentConfig interface{}, clientInstaller ports.Installer, operation string) (*installer.InstallResult, error) {
 	configPath, err := clientInstaller.GetConfigPath()
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get config path", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to get config path", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	backupPath, err := clientInstaller.BackupConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to create backup", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to create backup", slog.String("error", err.Error()))
 		// Continue anyway, backup is not critical
 	}
 
 	if err := clientInstaller.ValidateConfig(ctx, currentConfig); err != nil {
-		a.logger.ErrorContext(ctx, "invalid config format", logger.Error(err))
+		slog.ErrorContext(ctx, "invalid config format", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -307,11 +304,11 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 
 	updatedConfig, err := clientInstaller.AddMcpServer(ctx, currentConfig, mcpServer)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to add MCP server", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to add MCP server", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -319,11 +316,11 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 	}
 
 	if err := clientInstaller.SaveConfig(ctx, updatedConfig); err != nil {
-		a.logger.ErrorContext(ctx, "failed to save config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to save config", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -332,11 +329,11 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 
 	savedConfig, err := clientInstaller.LoadConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to load saved config for validation", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to load saved config for validation", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -344,11 +341,11 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 	}
 
 	if err := clientInstaller.ValidateConfig(ctx, savedConfig); err != nil {
-		a.logger.ErrorContext(ctx, "saved config validation failed", logger.Error(err))
+		slog.ErrorContext(ctx, "saved config validation failed", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -362,7 +359,7 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 		message += ". Please restart the application to activate the MCP server."
 	}
 
-	a.logger.InfoContext(ctx, fmt.Sprintf("%s completed successfully", operation),
+	slog.InfoContext(ctx, fmt.Sprintf("%s completed successfully", operation),
 		slog.String("config_path", configPath),
 		slog.String("backup_path", backupPath))
 
@@ -375,26 +372,26 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 }
 
 func (a *Application) show(ctx context.Context, config *installer.Config) (*installer.ShowResult, error) {
-	a.logger.InfoContext(ctx, "showing configuration",
+	slog.InfoContext(ctx, "showing configuration",
 		slog.String("client", string(config.Client)))
 
 	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get installer for client",
-			logger.Error(err),
+		slog.ErrorContext(ctx, "failed to get installer for client",
+			slog.String("error", err.Error()),
 			slog.String("client", string(config.Client)))
 		return nil, err
 	}
 
 	configPath, err := clientInstaller.GetConfigPath()
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get config path", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to get config path", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	currentConfig, err := clientInstaller.LoadConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to load config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to load config", slog.String("error", err.Error()))
 		return &installer.ShowResult{
 			Success:    false,
 			ConfigPath: configPath,
@@ -410,14 +407,14 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 	if config.Vertical != "" {
 		hasServer, err = clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
 		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to check if server exists", logger.Error(err))
+			slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
 			return nil, err
 		}
 
 		if hasServer {
 			serverConfig, err = clientInstaller.GetMcpServerConfig(ctx, currentConfig, config.Vertical)
 			if err != nil {
-				a.logger.ErrorContext(ctx, "failed to get server config", logger.Error(err))
+				slog.ErrorContext(ctx, "failed to get server config", slog.String("error", err.Error()))
 				return nil, err
 			}
 		}
@@ -425,7 +422,7 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 		// If no specific vertical requested, check if any Kirha servers exist
 		hasCrypto, err := clientInstaller.HasMcpServer(ctx, currentConfig, installer.VerticalTypeCrypto)
 		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to check if crypto server exists", logger.Error(err))
+			slog.ErrorContext(ctx, "failed to check if crypto server exists", slog.String("error", err.Error()))
 			return nil, err
 		}
 
@@ -440,7 +437,7 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 		// Format only the specific vertical's server configuration
 		fullConfig, err = clientInstaller.FormatSpecificServer(ctx, currentConfig, config.Vertical)
 		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to format specific server config", logger.Error(err))
+			slog.ErrorContext(ctx, "failed to format specific server config", slog.String("error", err.Error()))
 			// Fall back to showing all servers
 			fullConfig, err = clientInstaller.FormatConfig(ctx, currentConfig, config.OnlyKirha)
 		}
@@ -449,7 +446,7 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 	}
 
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to format config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to format config", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -474,7 +471,7 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 		}
 	}
 
-	a.logger.InfoContext(ctx, "configuration displayed successfully",
+	slog.InfoContext(ctx, "configuration displayed successfully",
 		slog.String("config_path", configPath),
 		slog.Bool("has_server", hasServer))
 
@@ -489,36 +486,36 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 }
 
 func (a *Application) Uninstall(ctx context.Context, config *installer.Config) (*installer.InstallResult, error) {
-	a.logger.InfoContext(ctx, "starting uninstallation",
+	slog.InfoContext(ctx, "starting uninstallation",
 		slog.String("client", string(config.Client)),
 		slog.Bool("dry_run", config.DryRun))
 
 	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get installer for client",
-			logger.Error(err),
+		slog.ErrorContext(ctx, "failed to get installer for client",
+			slog.String("error", err.Error()),
 			slog.String("client", string(config.Client)))
 		return nil, err
 	}
 
 	running, err := clientInstaller.IsClientRunning(ctx)
 	if err != nil {
-		a.logger.WarnContext(ctx, "failed to check if client is running", logger.Error(err))
+		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
 	}
 	if running && !config.DryRun {
-		a.logger.WarnContext(ctx, "client is currently running",
+		slog.WarnContext(ctx, "client is currently running",
 			slog.String("client", string(config.Client)))
 		return nil, errors.ErrClientRunning
 	}
 
 	configPath, err := clientInstaller.GetConfigPath()
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get config path", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to get config path", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if config.DryRun {
-		a.logger.InfoContext(ctx, "dry run - would modify config",
+		slog.InfoContext(ctx, "dry run - would modify config",
 			slog.String("path", configPath))
 		return &installer.InstallResult{
 			Success:    true,
@@ -529,23 +526,23 @@ func (a *Application) Uninstall(ctx context.Context, config *installer.Config) (
 
 	backupPath, err := clientInstaller.BackupConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to create backup", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to create backup", slog.String("error", err.Error()))
 		// Continue anyway, backup is not critical
 	}
 
 	currentConfig, err := clientInstaller.LoadConfig(ctx)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to load config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to load config", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to remove MCP server", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to remove MCP server", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -553,11 +550,11 @@ func (a *Application) Uninstall(ctx context.Context, config *installer.Config) (
 	}
 
 	if err := clientInstaller.SaveConfig(ctx, updatedConfig); err != nil {
-		a.logger.ErrorContext(ctx, "failed to save config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to save config", slog.String("error", err.Error()))
 
 		if backupPath != "" {
 			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				a.logger.ErrorContext(ctx, "failed to restore backup", logger.Error(restoreErr))
+				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
 			}
 		}
 
@@ -569,7 +566,7 @@ func (a *Application) Uninstall(ctx context.Context, config *installer.Config) (
 		message += ". Please restart the application to apply changes."
 	}
 
-	a.logger.InfoContext(ctx, "uninstallation completed successfully",
+	slog.InfoContext(ctx, "uninstallation completed successfully",
 		slog.String("config_path", configPath),
 		slog.String("backup_path", backupPath))
 

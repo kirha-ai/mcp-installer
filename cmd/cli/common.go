@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kirha-ai/mcp-installer/di"
-	domainErrors "github.com/kirha-ai/mcp-installer/internal/core/domain/errors"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
 	"github.com/spf13/cobra"
+	"go.kirha.ai/mcp-installer/di"
+	domainErrors "go.kirha.ai/mcp-installer/internal/core/domain/errors"
+	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
 )
 
 func runOperation(cmd *cobra.Command, operation installer.OperationType, client, vertical, apiKey, configPath string, dryRun, verbose, onlyKirha bool) error {

@@ -119,7 +119,7 @@ npx @kirha/mcp-installer --client <client> --key <api-key>
 
 ## Support
 
-For issues and feature requests, please visit: https://github.com/kirha-ai/mcp-installer/issues
+For issues and feature requests, please visit: https://go.kirha.ai/mcp-installer/issues
 
 ## License
 

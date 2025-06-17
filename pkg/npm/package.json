@@ -13,13 +13,13 @@
     "installer",
     "cli"
   ],
-  "homepage": "https://github.com/kirha-ai/mcp-installer",
+  "homepage": "https://go.kirha.ai/mcp-installer",
   "bugs": {
-    "url": "https://github.com/kirha-ai/mcp-installer/issues"
+    "url": "https://go.kirha.ai/mcp-installer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kirha-ai/mcp-installer.git"
+    "url": "git+https://go.kirha.ai/mcp-installer.git"
   },
   "license": "MIT",
   "author": "Kirha AI",

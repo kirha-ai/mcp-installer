@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/installer"
 	"github.com/spf13/cobra"
+	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
 )
 
 func NewCmdShow() *cobra.Command {

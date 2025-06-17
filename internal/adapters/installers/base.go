@@ -11,8 +11,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/kirha-ai/logger"
-	"github.com/kirha-ai/mcp-installer/internal/core/domain/errors"
+	"go.kirha.ai/mcp-installer/internal/core/domain/errors"
 )
 
 const (
@@ -29,13 +28,10 @@ const (
 )
 
 type BaseInstaller struct {
-	logger *slog.Logger
 }
 
 func NewBaseInstaller() *BaseInstaller {
-	return &BaseInstaller{
-		logger: logger.New("base_installer"),
-	}
+	return &BaseInstaller{}
 }
 
 func (b *BaseInstaller) ReadFile(path string) ([]byte, error) {
@@ -47,7 +43,7 @@ func (b *BaseInstaller) ReadFile(path string) ([]byte, error) {
 		if os.IsPermission(err) {
 			return nil, errors.ErrPermissionDenied
 		}
-		b.logger.Error("failed to read file", logger.Error(err), slog.String("path", path))
+		slog.Error("failed to read file", slog.String("error", err.Error()), slog.String("path", path))
 		return nil, errors.ErrConfigReadFailed
 	}
 	return data, nil
@@ -56,7 +52,7 @@ func (b *BaseInstaller) ReadFile(path string) ([]byte, error) {
 func (b *BaseInstaller) WriteFile(path string, content []byte) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		b.logger.Error("failed to create directory", logger.Error(err), slog.String("dir", dir))
+		slog.Error("failed to create directory", slog.String("error", err.Error()), slog.String("dir", dir))
 		return errors.ErrConfigWriteFailed
 	}
 
@@ -64,7 +60,7 @@ func (b *BaseInstaller) WriteFile(path string, content []byte) error {
 		if os.IsPermission(err) {
 			return errors.ErrPermissionDenied
 		}
-		b.logger.Error("failed to write file", logger.Error(err), slog.String("path", path))
+		slog.Error("failed to write file", slog.String("error", err.Error()), slog.String("path", path))
 		return errors.ErrConfigWriteFailed
 	}
 	return nil
@@ -93,11 +89,11 @@ func (b *BaseInstaller) CreateBackup(path string) (string, error) {
 	}
 
 	if err := b.WriteFile(backupPath, data); err != nil {
-		b.logger.Error("failed to write backup file", logger.Error(err), slog.String("backup_path", backupPath))
+		slog.Error("failed to write backup file", slog.String("error", err.Error()), slog.String("backup_path", backupPath))
 		return "", errors.ErrConfigBackupFailed
 	}
 
-	b.logger.Info("created configuration backup",
+	slog.Info("created configuration backup",
 		slog.String("original", path),
 		slog.String("backup", backupPath))
 
@@ -115,11 +111,11 @@ func (b *BaseInstaller) RestoreBackup(backupPath, targetPath string) error {
 	}
 
 	if err := b.WriteFile(targetPath, data); err != nil {
-		b.logger.Error("failed to restore file", logger.Error(err), slog.String("target", targetPath))
+		slog.Error("failed to restore file", slog.String("error", err.Error()), slog.String("target", targetPath))
 		return errors.ErrConfigRestoreFailed
 	}
 
-	b.logger.Info("restored configuration from backup",
+	slog.Info("restored configuration from backup",
 		slog.String("backup", backupPath),
 		slog.String("target", targetPath))
 
@@ -168,7 +164,7 @@ func (b *BaseInstaller) LoadJSONConfig(ctx context.Context, path string) (map[st
 
 	var config map[string]interface{}
 	if err := json.Unmarshal(data, &config); err != nil {
-		b.logger.ErrorContext(ctx, "failed to parse JSON config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to parse JSON config", slog.String("error", err.Error()))
 		return nil, errors.ErrConfigInvalid
 	}
 
@@ -178,7 +174,7 @@ func (b *BaseInstaller) LoadJSONConfig(ctx context.Context, path string) (map[st
 func (b *BaseInstaller) SaveJSONConfig(ctx context.Context, path string, config interface{}) error {
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		b.logger.ErrorContext(ctx, "failed to marshal JSON config", logger.Error(err))
+		slog.ErrorContext(ctx, "failed to marshal JSON config", slog.String("error", err.Error()))
 		return errors.ErrConfigInvalid
 	}
 
