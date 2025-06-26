@@ -52,7 +52,6 @@ npx @kirha/mcp-installer update --client claude --key your-new-api-key
 npx @kirha/mcp-installer update --client docker --key your-new-api-key
 ```
 
-7od0a2joxb3vgddq9g448msrhbkxbmla
 ### Remove
 
 ```bash
