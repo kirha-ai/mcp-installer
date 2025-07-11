@@ -1,6 +1,7 @@
 # MCP Installer
 
-[![Build Status](https://go.kirha.ai/mcp-installer/workflows/Build%20and%20Test/badge.svg)](https://go.kirha.ai/mcp-installer/actions)
+[![Build Status](https://github.com/kirha-ai/mcp-installer/workflows/Build/badge.svg)](https://github.com/kirha-ai/mcp-installer/actions)
+[![NPM Test](https://github.com/kirha-ai/mcp-installer/workflows/NPM%20Package%20Test/badge.svg)](https://github.com/kirha-ai/mcp-installer/actions)
 [![Go Report Card](https://goreportcard.com/badge/go.kirha.ai/mcp-installer)](https://goreportcard.com/report/go.kirha.ai/mcp-installer)
 [![NPM Version](https://img.shields.io/npm/v/@kirha/mcp-installer)](https://www.npmjs.com/package/@kirha/mcp-installer)
 
