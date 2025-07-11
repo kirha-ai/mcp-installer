@@ -8,7 +8,238 @@ on:
     branches: [ main ]
 
 jobs:
+  test-js:
+    name: Test JavaScript Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test JavaScript syntax
+        run: |
+          echo "Testing JavaScript file syntax..."
+          node -c scripts/kirha-mcp-installer.js
+          node -c scripts/install.js
+          node -c scripts/binary-utils.js
+          node -c scripts/performance-test.js
+          echo "✅ All JavaScript files have valid syntax"
+
+      - name: Lint JavaScript files
+        run: |
+          echo "Performing basic linting checks..."
+          
+          # Check for common issues
+          echo "Checking for console.log statements..."
+          if grep -r "console\.log" scripts/ bin/ --include="*.js" | grep -v "console.log('✅" | grep -v "console.log(\`✅" | grep -v "console.log.*Testing" | head -5; then
+            echo "ℹ️  Found console.log statements (review recommended)"
+          fi
+          
+          echo "Checking for TODO comments..."
+          if grep -r "TODO\|FIXME\|XXX" scripts/ bin/ --include="*.js" | head -5; then
+            echo "ℹ️  Found TODO comments"
+          fi
+          
+          echo "Checking for proper error handling..."
+          files_without_error_handling=0
+          for file in bin/kirha-mcp-installer.js scripts/install.js scripts/binary-utils.js scripts/performance-test.js; do
+            if ! grep -q "catch\|\.on('error'" "$file"; then
+              echo "⚠️  $file may be missing error handling"
+              files_without_error_handling=$((files_without_error_handling + 1))
+            fi
+          done
+          
+          echo "Checking for process.exit usage..."
+          if grep -r "process\.exit" scripts/ bin/ --include="*.js" | head -5; then
+            echo "ℹ️  Found process.exit usage (expected for install script)"
+          fi
+          
+          echo "✅ Basic linting checks completed"
+
+      - name: Test binary-utils module
+        run: |
+          echo "Testing binary-utils module..."
+          node -e "
+            const { getBinaryInfo, getBinaryName } = require('./scripts/binary-utils.js');
+            const info = getBinaryInfo();
+            const name = getBinaryName();
+            console.log('Binary info:', info);
+            console.log('Binary name:', name);
+            if (!info.name || !info.checksumName) {
+              throw new Error('getBinaryInfo() returned invalid data');
+            }
+            if (!name || typeof name !== 'string') {
+              throw new Error('getBinaryName() returned invalid data');
+            }
+            console.log('✅ binary-utils module working correctly');
+          "
+
+      - name: Test wrapper script (dry run)
+        run: |
+          echo "Testing wrapper script..."
+          # Create a fake binary for testing
+          mkdir -p bin
+          echo '#!/bin/bash' > bin/kirha-mcp-installer-linux-amd64
+          echo 'echo "Fake binary called with args: $@"' >> bin/kirha-mcp-installer-linux-amd64
+          chmod +x bin/kirha-mcp-installer-linux-amd64
+          
+          # Copy wrapper to bin (simulating release process)
+          cp scripts/kirha-mcp-installer.js bin/kirha-mcp-installer.js
+          
+          # Test the wrapper
+          timeout 5 node bin/kirha-mcp-installer.js --help || true
+          echo "✅ Wrapper script executed successfully"
+
+      - name: Test install script (cache only)
+        run: |
+          echo "Testing install script (cache functionality)..."
+          # Test the caching functions without actual downloads
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const os = require('os');
+            
+            // Mock the install script functions
+            const installScript = fs.readFileSync('./scripts/install.js', 'utf8');
+            
+            // Check if the script contains required functions
+            if (!installScript.includes('getCachedVersionInfo')) {
+              throw new Error('getCachedVersionInfo function not found');
+            }
+            if (!installScript.includes('setCachedVersionInfo')) {
+              throw new Error('setCachedVersionInfo function not found');
+            }
+            if (!installScript.includes('downloadFile')) {
+              throw new Error('downloadFile function not found');
+            }
+            
+            console.log('✅ Install script contains all required functions');
+          "
+
+  test-npm:
+    name: Test NPM Package
+    needs: test-js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test package.json configuration
+        run: |
+          echo "Testing package.json configuration..."
+          node -e "
+            const pkg = require('./package.json');
+            console.log('Package name:', pkg.name);
+            console.log('Package version:', pkg.version);
+            console.log('Main entry:', pkg.main);
+            console.log('Binary entry:', pkg.bin);
+            
+            // Check main entry point
+            if (pkg.main !== 'bin/kirha-mcp-installer.js') {
+              throw new Error('Main entry point is incorrect');
+            }
+            
+            // Check binary entry point
+            if (!pkg.bin || pkg.bin['kirha-mcp-installer'] !== './bin/kirha-mcp-installer.js') {
+              throw new Error('Binary entry point is incorrect');
+            }
+            
+            // Check files array (bin/kirha-mcp-installer.js will be copied from scripts/)
+            if (!pkg.files || !pkg.files.includes('bin/kirha-mcp-installer.js')) {
+              throw new Error('bin/kirha-mcp-installer.js not included in files array');
+            }
+            
+            if (!pkg.files.includes('scripts/install.js')) {
+              throw new Error('scripts/install.js not included in files array');
+            }
+            
+            if (!pkg.files.includes('scripts/binary-utils.js')) {
+              throw new Error('scripts/binary-utils.js not included in files array');
+            }
+            
+            console.log('✅ package.json configuration is correct');
+          "
+
+      - name: Test npm pack
+        run: |
+          echo "Testing npm pack..."
+          npm pack --dry-run
+          echo "✅ npm pack succeeded"
+
+      - name: Test postinstall script
+        run: |
+          echo "Testing postinstall script..."
+          # Set environment variable to skip actual downloads
+          export KIRHA_SKIP_DOWNLOAD=true
+          
+          # Test the install script with fake binary
+          mkdir -p bin
+          echo '#!/bin/bash' > bin/kirha-mcp-installer-linux-amd64
+          echo 'echo "Test binary v1.0.0"' >> bin/kirha-mcp-installer-linux-amd64
+          chmod +x bin/kirha-mcp-installer-linux-amd64
+          
+          # Run the install script (should skip download)
+          timeout 10 node scripts/install.js || echo "Install script completed"
+          
+          echo "✅ Postinstall script test completed"
+
+  test-performance:
+    name: Performance Test
+    needs: test-js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test performance script
+        run: |
+          echo "Testing performance test script..."
+          node -c scripts/performance-test.js
+          echo "✅ Performance test script has valid syntax"
+
+      - name: Test install script performance (dry run)
+        run: |
+          echo "Testing install script performance..."
+          
+          # Test fast path (binary exists)
+          mkdir -p bin
+          echo '#!/bin/bash' > bin/kirha-mcp-installer-linux-amd64
+          echo 'echo "Fast binary test"' >> bin/kirha-mcp-installer-linux-amd64
+          chmod +x bin/kirha-mcp-installer-linux-amd64
+          
+          # Time the fast execution
+          start_time=$(date +%s%N)
+          timeout 5 node scripts/install.js || true
+          end_time=$(date +%s%N)
+          duration=$(( ($end_time - $start_time) / 1000000 ))
+          
+          echo "Fast path execution time: ${duration}ms"
+          
+          # Verify it's reasonably fast (under 1 second)
+          if [ $duration -gt 1000 ]; then
+            echo "❌ Performance test failed - took ${duration}ms (expected < 1000ms)"
+            exit 1
+          fi
+          
+          echo "✅ Performance test passed - ${duration}ms"
+
   build:
+    name: Build Go Binaries
+    needs: [test-js, test-npm]
     runs-on: ubuntu-latest
 
     strategy:

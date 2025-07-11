@@ -115,8 +115,10 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 		slog.String("client", string(config.Client)),
 		slog.Bool("dry_run", config.DryRun))
 
-	if err := a.validateApiKey(config.ApiKey); err != nil {
-		return nil, err
+	if config.ApiKey != "" {
+		if err := a.validateApiKey(config.ApiKey); err != nil {
+			return nil, err
+		}
 	}
 
 	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
@@ -158,6 +160,21 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 	if !exists {
 		slog.ErrorContext(ctx, "MCP server not found, use 'install' command to add it")
 		return nil, errors.ErrServerNotFoundForUpdate
+	}
+
+	existingServer, err := clientInstaller.GetMcpServerConfig(ctx, currentConfig, config.Vertical)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get existing server config", slog.String("error", err.Error()))
+		return nil, err
+	}
+	
+	if config.ApiKey == "" {
+		config.ApiKey = existingServer.Environment["KIRHA_API_KEY"]
+	}
+	
+	if !config.PlanModeSet {
+		currentPlanMode := existingServer.Environment["TOOL_PLAN_MODE_ENABLED"] == "true"
+		config.EnablePlanMode = currentPlanMode
 	}
 
 	if config.DryRun {
@@ -300,7 +317,7 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 		return nil, err
 	}
 
-	mcpServer := installer.NewKirhaMcpServer(config.ApiKey, config.Vertical)
+	mcpServer := installer.NewKirhaMcpServer(config.ApiKey, config.Vertical, config.EnablePlanMode)
 
 	updatedConfig, err := clientInstaller.AddMcpServer(ctx, currentConfig, mcpServer)
 	if err != nil {

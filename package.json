@@ -44,7 +44,8 @@
   ],
   "files": [
     "bin/kirha-mcp-installer.js",
-    "scripts/",
+    "scripts/install.js",
+    "scripts/binary-utils.js",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"

@@ -13,7 +13,7 @@ const (
 )
 
 var VerticalIDs = map[VerticalType]string{
-	VerticalTypeCrypto: "cfdbb30b-e0e5-42d3-91c4-baca44234e36",
+	VerticalTypeCrypto: "crypto",
 }
 
 func (v VerticalType) Valid() bool {
@@ -53,14 +53,17 @@ type Config struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Client     ClientType
-	Vertical   VerticalType
-	ApiKey     string
-	ConfigPath string
-	Operation  OperationType
-	DryRun     bool
-	Verbose    bool
-	OnlyKirha  bool
+	Client          ClientType
+	Vertical        VerticalType
+	ApiKey          string
+	ConfigPath      string
+	Operation       OperationType
+	DryRun          bool
+	Verbose         bool
+	OnlyKirha       bool
+	EnablePlanMode  bool
+	DisablePlanMode bool
+	PlanModeSet     bool
 }
 
 type McpServer struct {
@@ -70,15 +73,20 @@ type McpServer struct {
 	Environment map[string]string
 }
 
-func NewKirhaMcpServer(apiKey string, vertical VerticalType) *McpServer {
+func NewKirhaMcpServer(apiKey string, vertical VerticalType, enablePlanMode bool) *McpServer {
 	serverName := ServerName + "-" + vertical.String()
+	planModeValue := "false"
+	if enablePlanMode {
+		planModeValue = "true"
+	}
 	return &McpServer{
 		Name:    serverName,
 		Command: "npx",
-		Args:    []string{"-y", "@kirha/mcp-gateway", "stdio"},
+		Args:    []string{"-y", "@kirha/mcp-gateway"},
 		Environment: map[string]string{
 			"KIRHA_API_KEY":  apiKey,
-			"KIRHA_VERTICAL": VerticalIDs[vertical],
+			"VERTICAL_ID": VerticalIDs[vertical],
+			"TOOL_PLAN_MODE_ENABLED": planModeValue,
 		},
 	}
 }

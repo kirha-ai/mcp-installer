@@ -33,7 +33,7 @@ and other MCP servers that are configured. API keys will be masked for security.
   # Show all configurations for VS Code with verbose output
   mcp-installer show --client vscode --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationShow, client, vertical, "", configPath, false, verbose, onlyKirha)
+			return runOperation(cmd, installer.OperationShow, client, vertical, "", configPath, false, verbose, onlyKirha, false, false, false)
 		},
 	}
 

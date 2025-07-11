@@ -30,7 +30,7 @@ If the server doesn't exist, the command will fail with an appropriate message.`
   # Remove crypto vertical from VS Code with verbose output
   mcp-installer remove --client vscode --vertical crypto --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationRemove, client, vertical, "", configPath, dryRun, verbose, false)
+			return runOperation(cmd, installer.OperationRemove, client, vertical, "", configPath, dryRun, verbose, false, false, false, false)
 		},
 	}
 

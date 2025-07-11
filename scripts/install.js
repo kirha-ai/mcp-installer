@@ -5,45 +5,22 @@ const path = require('path');
 const os = require('os');
 const https = require('https');
 const crypto = require('crypto');
+const { getBinaryInfo } = require('./binary-utils');
 
 const GITHUB_REPO = 'kirha-ai/mcp-installer';
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
-function getBinaryInfo() {
-  const platform = os.platform();
-  const arch = os.arch();
-  
-  let binaryName = 'kirha-mcp-installer';
-  let ext = '';
-  
-  // Map Node.js arch to Go arch
-  let goArch = arch;
-  if (arch === 'x64') goArch = 'amd64';
-  
-  if (platform === 'win32') {
-    binaryName += `-windows-${goArch}`;
-    ext = '.exe';
-  } else if (platform === 'darwin') {
-    binaryName += `-darwin-${goArch}`;
-  } else if (platform === 'linux') {
-    binaryName += `-linux-${goArch}`;
-  } else {
-    console.error(`Unsupported platform: ${platform}`);
-    process.exit(1);
-  }
-  
-  return {
-    name: binaryName + ext,
-    checksumName: binaryName + ext + '.sha256'
-  };
-}
+// Cache directory for storing version info
+const CACHE_DIR = path.join(os.tmpdir(), 'kirha-mcp-installer-cache');
+const VERSION_CACHE_FILE = path.join(CACHE_DIR, 'version.json');
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 function downloadFile(url, destination) {
   return new Promise((resolve, reject) => {
     console.log(`Downloading ${url}`);
     const file = fs.createWriteStream(destination);
     
-    https.get(url, {
+    const request = https.get(url, {
       headers: {
         'User-Agent': 'kirha-mcp-installer-npm-installer'
       }
@@ -72,6 +49,9 @@ function downloadFile(url, destination) {
         reject(error);
       });
     }).on('error', reject);
+    
+    // Ensure the request is properly closed
+    request.on('error', reject);
   });
 }
 
@@ -126,6 +106,42 @@ function verifyChecksum(filePath, checksumPath) {
   return true;
 }
 
+function getCachedVersionInfo() {
+  try {
+    if (!fs.existsSync(VERSION_CACHE_FILE)) {
+      return null;
+    }
+    
+    const cacheData = JSON.parse(fs.readFileSync(VERSION_CACHE_FILE, 'utf8'));
+    const now = Date.now();
+    
+    if (now - cacheData.timestamp > CACHE_DURATION) {
+      return null; // Cache expired
+    }
+    
+    return cacheData.release;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setCachedVersionInfo(release) {
+  try {
+    if (!fs.existsSync(CACHE_DIR)) {
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+    }
+    
+    const cacheData = {
+      timestamp: Date.now(),
+      release: release
+    };
+    
+    fs.writeFileSync(VERSION_CACHE_FILE, JSON.stringify(cacheData, null, 2));
+  } catch (error) {
+    console.warn('Failed to cache version info:', error.message);
+  }
+}
+
 async function main() {
   const binaryInfo = getBinaryInfo();
   const binDir = path.join(__dirname, '..', 'bin');
@@ -140,7 +156,7 @@ async function main() {
     fs.mkdirSync(binDir, { recursive: true });
   }
   
-  // Check if binary already exists
+  // Check if binary already exists and is executable
   if (fs.existsSync(binaryPath)) {
     console.log('Binary already exists, skipping download');
     
@@ -154,13 +170,20 @@ async function main() {
     }
     
     console.log(`✅ kirha-mcp-installer is ready for ${os.platform()} ${os.arch()}`);
-    return;
+    process.exit(0);
   }
   
   try {
-    // Get latest release info
-    console.log('Fetching latest release information...');
-    const release = await getLatestRelease();
+    // Try to get release info from cache first
+    let release = getCachedVersionInfo();
+    
+    if (!release) {
+      console.log('Fetching latest release information...');
+      release = await getLatestRelease();
+      setCachedVersionInfo(release);
+    } else {
+      console.log('Using cached release information...');
+    }
     
     // Find the binary asset
     const binaryAsset = release.assets.find(asset => asset.name === binaryInfo.name);
@@ -182,8 +205,9 @@ async function main() {
     await downloadFile(binaryAsset.browser_download_url, binaryPath);
     console.log(`✅ Downloaded ${binaryInfo.name}`);
     
-    // Download and verify checksum if available
-    if (checksumAsset) {
+    // Download and verify checksum if available (optional for faster installation)
+    if (checksumAsset && process.env.KIRHA_VERIFY_CHECKSUM !== 'false') {
+      console.log('Downloading and verifying checksum...');
       await downloadFile(checksumAsset.browser_download_url, checksumPath);
       
       if (!verifyChecksum(binaryPath, checksumPath)) {
@@ -195,6 +219,8 @@ async function main() {
       
       // Clean up checksum file
       fs.unlinkSync(checksumPath);
+    } else if (checksumAsset) {
+      console.log('Skipping checksum verification for faster installation (set KIRHA_VERIFY_CHECKSUM=true to enable)');
     }
     
     // Make binary executable on Unix systems
@@ -209,6 +235,7 @@ async function main() {
     
     
     console.log(`✅ kirha-mcp-installer ${release.tag_name} is ready for ${os.platform()} ${os.arch()}`);
+    process.exit(0);
     
   } catch (error) {
     console.error(`Installation failed: ${error.message}`);

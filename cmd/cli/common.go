@@ -11,7 +11,7 @@ import (
 	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
 )
 
-func runOperation(cmd *cobra.Command, operation installer.OperationType, client, vertical, apiKey, configPath string, dryRun, verbose, onlyKirha bool) error {
+func runOperation(cmd *cobra.Command, operation installer.OperationType, client, vertical, apiKey, configPath string, dryRun, verbose, onlyKirha bool, enablePlanMode, disablePlanMode bool, planModeValue bool) error {
 	clientType, err := validateClient(client)
 	if err != nil {
 		return err
@@ -25,19 +25,22 @@ func runOperation(cmd *cobra.Command, operation installer.OperationType, client,
 		}
 	}
 
-	if operation != installer.OperationRemove && operation != installer.OperationShow && apiKey == "" {
+	if operation == installer.OperationInstall && apiKey == "" {
 		return fmt.Errorf("API key is required for %s operation", operation)
 	}
 
 	config := &installer.Config{
-		Client:     clientType,
-		Vertical:   verticalType,
-		ApiKey:     apiKey,
-		ConfigPath: configPath,
-		Operation:  operation,
-		DryRun:     dryRun,
-		Verbose:    verbose,
-		OnlyKirha:  onlyKirha,
+		Client:          clientType,
+		Vertical:        verticalType,
+		ApiKey:          apiKey,
+		ConfigPath:      configPath,
+		Operation:       operation,
+		DryRun:          dryRun,
+		Verbose:         verbose,
+		OnlyKirha:       onlyKirha,
+		EnablePlanMode:  enablePlanMode,
+		DisablePlanMode: disablePlanMode,
+		PlanModeSet:     enablePlanMode || disablePlanMode,
 	}
 
 	app, err := di.ProvideInstallerApplication()

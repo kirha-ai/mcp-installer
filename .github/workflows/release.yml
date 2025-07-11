@@ -144,13 +144,39 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Remove bundled binaries
-        run: rm -rf bin/* || true
-
-      - name: Copy JavaScript wrapper
+        run: |
+          rm -rf bin/* || true
+          
+      - name: Copy JavaScript wrapper to bin
         run: |
           mkdir -p bin
           cp scripts/kirha-mcp-installer.js bin/kirha-mcp-installer.js
           chmod +x bin/kirha-mcp-installer.js
+          chmod +x scripts/install.js
+
+      - name: Test package before publishing
+        run: |
+          echo "Testing package structure before publishing..."
+          
+          # Test syntax
+          node -c bin/kirha-mcp-installer.js
+          node -c scripts/install.js
+          node -c scripts/binary-utils.js
+          
+          # Test binary-utils
+          node -e "
+            const { getBinaryInfo, getBinaryName } = require('./scripts/binary-utils.js');
+            const info = getBinaryInfo();
+            console.log('Binary info:', info);
+            if (!info.name || !info.checksumName) {
+              throw new Error('Invalid binary info');
+            }
+          "
+          
+          # Test npm pack
+          npm pack --dry-run
+          
+          echo "✅ Package tests passed"
 
       - name: Publish to NPM
         run: npm publish --access public

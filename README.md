@@ -14,6 +14,8 @@ MCP Installer is a CLI tool that simplifies the installation of Kirha MCP (Model
 - **Automatic backup**: Creates backups before modifying configurations
 - **Dry-run mode**: Preview changes before applying them
 - **Cross-platform builds**: Automated builds for multiple architectures
+- **Plan mode support**: Enable/disable tool plan mode for enhanced AI assistance
+- **Flexible updates**: Update configurations without requiring API key changes
 
 ## Installation
 
@@ -33,64 +35,72 @@ Download the latest binary from the [releases page](https://go.kirha.ai/mcp-inst
 
 ```bash
 # Install for Claude Desktop
-npx @kirha/mcp-installer install --client claude --key your-api-key-here
+npx @kirha/mcp-installer install --client claude --vertical crypto --key your-api-key-here
 
 # Install for Docker
-npx @kirha/mcp-installer install --client docker --key your-api-key-here
+npx @kirha/mcp-installer install --client docker --vertical crypto --key your-api-key-here
 
-# Install for Cursor IDE
-npx @kirha/mcp-installer install --client cursor --key your-api-key-here
+# Install for Cursor IDE with plan mode enabled
+npx @kirha/mcp-installer install --client cursor --vertical crypto --key your-api-key-here --enable-plan-mode
 ```
 
 ### Update
 
 ```bash
-# Update configuration for Claude Desktop
-npx @kirha/mcp-installer update --client claude --key your-new-api-key
+# Update API key for Claude Desktop
+npx @kirha/mcp-installer update --client claude --vertical crypto --key your-new-api-key
 
-# Update for Docker
-npx @kirha/mcp-installer update --client docker --key your-new-api-key
+# Enable plan mode without changing API key
+npx @kirha/mcp-installer update --client claude --vertical crypto --enable-plan-mode
+
+# Disable plan mode without changing API key
+npx @kirha/mcp-installer update --client claude --vertical crypto --disable-plan-mode
+
+# Update API key and enable plan mode
+npx @kirha/mcp-installer update --client docker --vertical crypto --key your-new-api-key --enable-plan-mode
+
+# Update configuration preserving existing settings
+npx @kirha/mcp-installer update --client cursor --vertical crypto
 ```
 
 ### Remove
 
 ```bash
 # Remove from VS Code
-npx @kirha/mcp-installer remove --client vscode
+npx @kirha/mcp-installer remove --client vscode --vertical crypto
 
 # Remove from Cursor
-npx @kirha/mcp-installer remove --client cursor
+npx @kirha/mcp-installer remove --client cursor --vertical crypto
 ```
 
 ### Show Configuration
 
 ```bash
 # Show current configuration for Claude Desktop
-npx @kirha/mcp-installer show --client claude
+npx @kirha/mcp-installer show --client claude --vertical crypto
 
 # Show configuration for Docker
-npx @kirha/mcp-installer show --client docker
+npx @kirha/mcp-installer show --client docker --vertical crypto
 
 # Show configuration for VS Code with verbose output
-npx @kirha/mcp-installer show --client vscode --verbose
+npx @kirha/mcp-installer show --client vscode --vertical crypto --verbose
 ```
 
 ### Commands
 
 - `install` - Install MCP server (fails if already exists)
-- `update` - Update existing MCP server configuration
+- `update` - Update existing MCP server configuration (preserves existing settings when not specified)
 - `remove` - Remove MCP server from configuration
 - `show` - Display current MCP server configuration
 
 ### Options
 
+#### Common Options
 - `--client, -c` - Client to operate on (required)
-- `--key, -k` - API key for Kirha MCP server (required for install/update)
+- `--vertical` - Vertical to operate on (crypto, utils) (required)
 - `--config-path` - Custom configuration file path (optional)
 - `--dry-run` - Show what would be changed without making changes (install/update/remove only)
 - `--verbose, -v` - Enable verbose logging
-
-**Note**: The `show` command does not require an API key and will mask sensitive information for security.
 
 ## Supported Clients
 

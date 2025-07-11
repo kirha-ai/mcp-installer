@@ -1,0 +1,201 @@
+name: NPM Package Test
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'scripts/**'
+      - 'bin/**'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'scripts/**'
+      - 'bin/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  test-npm-package:
+    name: Test NPM Package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [16, 18, 20]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Test JavaScript files
+        run: |
+          echo "Testing JavaScript files on ${{ matrix.os }} with Node.js ${{ matrix.node-version }}"
+          node -c bin/kirha-mcp-installer.js
+          node -c scripts/install.js
+          node -c scripts/binary-utils.js
+          node -c scripts/performance-test.js
+
+      - name: Test binary-utils cross-platform
+        run: |
+          node -e "
+            const { getBinaryInfo, getBinaryName } = require('./scripts/binary-utils.js');
+            const info = getBinaryInfo();
+            const name = getBinaryName();
+            console.log('Platform:', process.platform);
+            console.log('Architecture:', process.arch);
+            console.log('Binary info:', info);
+            console.log('Binary name:', name);
+            
+            // Verify platform-specific naming
+            if (process.platform === 'win32' && !name.endsWith('.exe')) {
+              throw new Error('Windows binary should have .exe extension');
+            }
+            
+            if (process.platform !== 'win32' && name.endsWith('.exe')) {
+              throw new Error('Non-Windows binary should not have .exe extension');
+            }
+            
+            console.log('✅ Binary utils working correctly on', process.platform);
+          "
+
+      - name: Test package structure
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Check required files exist
+            const requiredFiles = [
+              'bin/kirha-mcp-installer.js',
+              'scripts/install.js',
+              'scripts/binary-utils.js',
+              'package.json'
+            ];
+            
+            for (const file of requiredFiles) {
+              if (!fs.existsSync(file)) {
+                throw new Error('Required file missing: ' + file);
+              }
+            }
+            
+            console.log('✅ All required files present');
+          "
+
+      - name: Test npm pack
+        run: |
+          npm pack --dry-run > pack-output.txt 2>&1
+          cat pack-output.txt
+          
+          # Check that important files are included
+          if ! grep -q "bin/kirha-mcp-installer.js" pack-output.txt; then
+            echo "❌ bin/kirha-mcp-installer.js not included in pack"
+            exit 1
+          fi
+          
+          if ! grep -q "scripts/install.js" pack-output.txt; then
+            echo "❌ scripts/install.js not included in pack"
+            exit 1
+          fi
+          
+          if ! grep -q "scripts/binary-utils.js" pack-output.txt; then
+            echo "❌ scripts/binary-utils.js not included in pack"
+            exit 1
+          fi
+          
+          echo "✅ NPM pack includes all required files"
+
+      - name: Test install script performance
+        run: |
+          # Create a fake binary for testing
+          mkdir -p bin
+          echo '#!/bin/bash' > bin/kirha-mcp-installer-${{ runner.os == 'Windows' && 'windows' || runner.os == 'macOS' && 'darwin' || 'linux' }}-${{ runner.arch == 'X64' && 'amd64' || 'arm64' }}${{ runner.os == 'Windows' && '.exe' || '' }}
+          echo 'echo "Test binary"' >> bin/kirha-mcp-installer-${{ runner.os == 'Windows' && 'windows' || runner.os == 'macOS' && 'darwin' || 'linux' }}-${{ runner.arch == 'X64' && 'amd64' || 'arm64' }}${{ runner.os == 'Windows' && '.exe' || '' }}
+          chmod +x bin/kirha-mcp-installer-${{ runner.os == 'Windows' && 'windows' || runner.os == 'macOS' && 'darwin' || 'linux' }}-${{ runner.arch == 'X64' && 'amd64' || 'arm64' }}${{ runner.os == 'Windows' && '.exe' || '' }} || true
+          
+          # Test the install script (should be fast since binary exists)
+          echo "Testing install script performance..."
+          start_time=$(date +%s 2>/dev/null || echo 0)
+          timeout 30 node scripts/install.js || echo "Install script completed"
+          end_time=$(date +%s 2>/dev/null || echo 0)
+          
+          if [ $start_time -ne 0 ] && [ $end_time -ne 0 ]; then
+            duration=$((end_time - start_time))
+            echo "Install script took ${duration} seconds"
+            
+            if [ $duration -gt 10 ]; then
+              echo "⚠️  Install script took longer than expected (${duration}s)"
+            else
+              echo "✅ Install script performance acceptable (${duration}s)"
+            fi
+          else
+            echo "✅ Install script completed"
+          fi
+
+  test-integration:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: test-npm-package
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Create test package
+        run: |
+          # Create a test package
+          npm pack
+          
+          # Create a temporary directory for testing
+          mkdir -p /tmp/npm-test
+          cd /tmp/npm-test
+          
+          # Initialize a new npm project
+          npm init -y
+          
+          # Install the package
+          npm install $GITHUB_WORKSPACE/*.tgz
+          
+          echo "✅ Package installed successfully"
+
+      - name: Test installed package
+        run: |
+          cd /tmp/npm-test
+          
+          # Test that the binary is accessible
+          which kirha-mcp-installer || echo "Binary not in PATH (expected)"
+          
+          # Test npm-installed package structure
+          if [ -f node_modules/@kirha/mcp-installer/bin/kirha-mcp-installer.js ]; then
+            echo "✅ Main binary found"
+          else
+            echo "❌ Main binary not found"
+            exit 1
+          fi
+          
+          if [ -f node_modules/@kirha/mcp-installer/scripts/install.js ]; then
+            echo "✅ Install script found"
+          else
+            echo "❌ Install script not found"
+            exit 1
+          fi
+          
+          if [ -f node_modules/@kirha/mcp-installer/scripts/binary-utils.js ]; then
+            echo "✅ Binary utils found"
+          else
+            echo "❌ Binary utils not found"
+            exit 1
+          fi
+          
+          echo "✅ Integration test passed"

@@ -7,12 +7,13 @@ import (
 
 func NewCmdInstall() *cobra.Command {
 	var (
-		client     string
-		vertical   string
-		apiKey     string
-		configPath string
-		dryRun     bool
-		verbose    bool
+		client         string
+		vertical       string
+		apiKey         string
+		configPath     string
+		dryRun         bool
+		verbose        bool
+		enablePlanMode bool
 	)
 
 	cmd := &cobra.Command{
@@ -29,9 +30,12 @@ If the server already exists, the command will fail with a suggestion to use 'up
   mcp-installer install --client docker --vertical utils --key your-api-key-here --dry-run
 
   # Install crypto vertical for VS Code with custom config path
-  mcp-installer install --client vscode --vertical crypto --key your-api-key-here --config-path /custom/path`,
+  mcp-installer install --client vscode --vertical crypto --key your-api-key-here --config-path /custom/path
+
+  # Install crypto vertical with plan mode enabled
+  mcp-installer install --client cursor --vertical crypto --key your-api-key-here --enable-plan-mode`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationInstall, client, vertical, apiKey, configPath, dryRun, verbose, false)
+			return runOperation(cmd, installer.OperationInstall, client, vertical, apiKey, configPath, dryRun, verbose, false, enablePlanMode, false, enablePlanMode)
 		},
 	}
 
@@ -41,6 +45,7 @@ If the server already exists, the command will fail with a suggestion to use 'up
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
+	cmd.Flags().BoolVar(&enablePlanMode, "enable-plan-mode", false, "Enable tool plan mode (default: false)")
 
 	_ = cmd.MarkFlagRequired("client")
 	_ = cmd.MarkFlagRequired("vertical")
