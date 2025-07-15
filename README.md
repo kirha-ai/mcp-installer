@@ -1,6 +1,8 @@
 # MCP Installer
 
 [![Build Status](https://github.com/kirha-ai/mcp-installer/workflows/Build/badge.svg)](https://github.com/kirha-ai/mcp-installer/actions)
+[![Docker](https://github.com/kirha-ai/kirha-mcp-installer/actions/workflows/docker.yml/badge.svg)](https://github.com/kirha-ai/kirha-mcp-installer/actions/workflows/docker.yml)
+[![Go Reference](https://pkg.go.dev/badge/go.kirha.ai/mcp-installer.svg)](https://pkg.go.dev/go.kirha.ai/mcp-installer)
 [![Go Report Card](https://goreportcard.com/badge/go.kirha.ai/mcp-installer)](https://goreportcard.com/report/go.kirha.ai/mcp-installer)
 [![NPM Version](https://img.shields.io/npm/v/@kirha/mcp-installer)](https://www.npmjs.com/package/@kirha/mcp-installer)
 
@@ -25,9 +27,37 @@ MCP Installer is a CLI tool that simplifies the installation of Kirha MCP (Model
 npx @kirha/mcp-installer install --client <client> --key <api-key>
 ```
 
+### Go Run (Quick Start)
+
+You can run the installer directly without downloading or installing:
+
+```bash
+go run go.kirha.ai/mcp-installer/cmd@latest install --client <client> --key <api-key>
+```
+
 ### Direct Download
 
 Download the latest binary from the [releases page](https://go.kirha.ai/mcp-installer/releases).
+
+### Docker
+
+You can also use the installer via Docker:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/kirha-ai/kirha-mcp-installer:latest
+
+# Or pull a specific version
+docker pull ghcr.io/kirha-ai/kirha-mcp-installer:v1.0.0
+```
+
+**Available tags:**
+- `latest` - The most recent stable release
+- Version tags (e.g., `v1.0.0`, `v1.1.0`) - Specific release versions
+
+**Supported platforms:**
+- `linux/amd64`
+- `linux/arm64`
 
 ## Usage
 
@@ -42,7 +72,29 @@ npx @kirha/mcp-installer install --client docker --vertical crypto --key your-ap
 
 # Install for Cursor IDE with plan mode enabled
 npx @kirha/mcp-installer install --client cursor --vertical crypto --key your-api-key-here --enable-plan-mode
+
+# Using go run directly (without npm)
+go run go.kirha.ai/mcp-installer/cmd@latest install --client claude --vertical crypto --key your-api-key-here
 ```
+
+### Docker Usage
+
+You can run the MCP installer using Docker without installing it locally:
+
+```bash
+# Basic docker run command with volume mounts for config files
+docker run --rm -v ~/.config:/home/nonroot/.config \
+  -v ~/Library/Application\ Support:/home/nonroot/Library/Application\ Support \
+  ghcr.io/kirha-ai/kirha-mcp-installer:latest install --client claude --vertical crypto --key your-api-key-here
+
+# Install MCP Gateway
+docker run --rm -v ~/.config:/home/nonroot/.config ghcr.io/kirha-ai/kirha-mcp-installer:latest install
+
+# Check version
+docker run --rm ghcr.io/kirha-ai/kirha-mcp-installer:latest version
+```
+
+**Note about file permissions:** When using Docker with volume mounts, ensure that the mounted directories have appropriate permissions. The container runs as a non-root user (`nonroot`), so the mounted directories must be readable and writable by the container user. You may need to adjust permissions or use user mapping if you encounter permission issues.
 
 ### Update
 
