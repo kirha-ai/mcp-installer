@@ -8,9 +8,7 @@ import (
 func NewCmdShow() *cobra.Command {
 	var (
 		client     string
-		vertical   string
 		configPath string
-		onlyKirha  bool
 		verbose    bool
 	)
 
@@ -21,26 +19,24 @@ func NewCmdShow() *cobra.Command {
 
 This command will show the existing MCP server configuration, including any Kirha MCP servers
 and other MCP servers that are configured. API keys will be masked for security.`,
-		Example: `  # Show all MCP server configurations for Claude Desktop
-  mcp-installer show --client claude
+		Example: `  # Show MCP server configuration for Claude Code CLI
+  mcp-installer show --client claudecode
 
-  # Show only crypto vertical configuration for Docker
-  mcp-installer show --client docker --vertical crypto
+  # Show configuration for Cursor
+  mcp-installer show --client cursor
 
-  # Show only Kirha MCP servers for Claude Desktop
-  mcp-installer show --client claude --only-kirha
+  # Show configuration for Codex with verbose output
+  mcp-installer show --client codex --verbose
 
-  # Show all configurations for VS Code with verbose output
-  mcp-installer show --client vscode --verbose`,
+  # Show configuration for OpenCode
+  mcp-installer show --client opencode`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationShow, client, vertical, "", configPath, false, verbose, onlyKirha, false, false, false)
+			return runOperation(cmd, installer.OperationShow, client, "", configPath, false, verbose)
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to show configuration for (required)")
-	cmd.Flags().StringVar(&vertical, "vertical", "", "Vertical to show (crypto, utils) (optional - shows all if not specified)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to show configuration for (claudecode, cursor, codex, opencode) (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
-	cmd.Flags().BoolVar(&onlyKirha, "only-kirha", false, "Show only Kirha MCP servers")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 
 	_ = cmd.MarkFlagRequired("client")

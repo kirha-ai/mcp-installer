@@ -4,39 +4,16 @@ import "time"
 
 const (
 	ServerName = "kirha"
+	ServerURL  = "https://mcp.kirha.com"
 )
-
-type VerticalType string
-
-const (
-	VerticalTypeCrypto VerticalType = "crypto"
-)
-
-var VerticalIDs = map[VerticalType]string{
-	VerticalTypeCrypto: "crypto",
-}
-
-func (v VerticalType) Valid() bool {
-	switch v {
-	case VerticalTypeCrypto:
-		return true
-	default:
-		return false
-	}
-}
-
-func (v VerticalType) String() string {
-	return string(v)
-}
 
 type ClientType string
 
 const (
-	ClientTypeClaude     ClientType = "claude"
+	ClientTypeClaudecode ClientType = "claudecode"
 	ClientTypeCursor     ClientType = "cursor"
-	ClientTypeVSCode     ClientType = "vscode"
-	ClientTypeClaudeCode ClientType = "claude-code"
-	ClientTypeDocker     ClientType = "docker"
+	ClientTypeCodex      ClientType = "codex"
+	ClientTypeOpencode   ClientType = "opencode"
 )
 
 type OperationType string
@@ -53,46 +30,30 @@ type Config struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Client          ClientType
-	Vertical        VerticalType
-	ApiKey          string
-	ConfigPath      string
-	Operation       OperationType
-	DryRun          bool
-	Verbose         bool
-	OnlyKirha       bool
-	EnablePlanMode  bool
-	DisablePlanMode bool
-	PlanModeSet     bool
+	Client     ClientType
+	ApiKey     string
+	ConfigPath string
+	Operation  OperationType
+	DryRun     bool
+	Verbose    bool
 }
 
 type McpServer struct {
-	Name        string
-	Command     string
-	Args        []string
-	Environment map[string]string
+	Name    string
+	Type    string
+	URL     string
+	Headers map[string]string
 }
 
-func NewKirhaMcpServer(apiKey string, vertical VerticalType, enablePlanMode bool) *McpServer {
-	serverName := ServerName + "-" + vertical.String()
-	planModeValue := "false"
-	if enablePlanMode {
-		planModeValue = "true"
-	}
+func NewKirhaRemoteMcpServer(apiKey string) *McpServer {
 	return &McpServer{
-		Name:    serverName,
-		Command: "npx",
-		Args:    []string{"-y", "@kirha/mcp-gateway"},
-		Environment: map[string]string{
-			"KIRHA_API_KEY":  apiKey,
-			"VERTICAL_ID": VerticalIDs[vertical],
-			"TOOL_PLAN_MODE_ENABLED": planModeValue,
+		Name: ServerName,
+		Type: "http",
+		URL:  ServerURL,
+		Headers: map[string]string{
+			"Authorization": "Bearer " + apiKey,
 		},
 	}
-}
-
-func GetServerName(vertical VerticalType) string {
-	return ServerName + "-" + vertical.String()
 }
 
 type InstallResult struct {

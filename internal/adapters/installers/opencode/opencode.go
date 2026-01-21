@@ -1,4 +1,4 @@
-package claudecode
+package opencode
 
 import (
 	"context"
@@ -16,19 +16,19 @@ import (
 )
 
 const (
-	configFileName = "config.json"
-	configDir      = ".claude-code"
+	configFileName = "opencode.json"
+	configDir      = "opencode"
 	mcpKey         = "mcpServers"
 )
 
-type ClaudeCodeConfig struct {
+type OpenCodeConfig struct {
 	McpServers map[string]McpServerConfig `json:"mcpServers,omitempty"`
 }
 
 type McpServerConfig struct {
-	Command string            `json:"command"`
-	Args    []string          `json:"args"`
-	Env     map[string]string `json:"env,omitempty"`
+	Type    string            `json:"type"`
+	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 type Installer struct {
@@ -42,12 +42,27 @@ func New() *Installer {
 }
 
 func (i *Installer) GetConfigPath() (string, error) {
-	home, err := i.GetHomeDir()
+	configBase, err := i.GetConfigDir()
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(home, configDir, configFileName), nil
+	return filepath.Join(configBase, configDir, configFileName), nil
+}
+
+func (i *Installer) GetConfigDir() (string, error) {
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		home, err := i.GetHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, ".config"), nil
+	case "windows":
+		return i.GetPlatformConfigPath("", "")
+	default:
+		return "", fmt.Errorf("%w: %s", errors.ErrPlatformNotSupported, runtime.GOOS)
+	}
 }
 
 func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
@@ -58,7 +73,7 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 
 	if !i.FileExists(path) {
 		slog.InfoContext(ctx, "config file not found, creating new one", slog.String("path", path))
-		return &ClaudeCodeConfig{
+		return &OpenCodeConfig{
 			McpServers: make(map[string]McpServerConfig),
 		}, nil
 	}
@@ -68,7 +83,7 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 		return nil, err
 	}
 
-	config := &ClaudeCodeConfig{
+	config := &OpenCodeConfig{
 		McpServers: make(map[string]McpServerConfig),
 	}
 
@@ -77,24 +92,19 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 			if serverMap, ok := serverData.(map[string]interface{}); ok {
 				mcpServer := McpServerConfig{}
 
-				if cmd, ok := serverMap["command"].(string); ok {
-					mcpServer.Command = cmd
+				if serverType, ok := serverMap["type"].(string); ok {
+					mcpServer.Type = serverType
 				}
 
-				if args, ok := serverMap["args"].([]interface{}); ok {
-					mcpServer.Args = make([]string, len(args))
-					for j, arg := range args {
-						if argStr, ok := arg.(string); ok {
-							mcpServer.Args[j] = argStr
-						}
-					}
+				if url, ok := serverMap["url"].(string); ok {
+					mcpServer.URL = url
 				}
 
-				if env, ok := serverMap["env"].(map[string]interface{}); ok {
-					mcpServer.Env = make(map[string]string)
-					for k, v := range env {
+				if headers, ok := serverMap["headers"].(map[string]interface{}); ok {
+					mcpServer.Headers = make(map[string]string)
+					for k, v := range headers {
 						if vStr, ok := v.(string); ok {
-							mcpServer.Env[k] = vStr
+							mcpServer.Headers[k] = vStr
 						}
 					}
 				}
@@ -108,48 +118,48 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 }
 
 func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server *installer.McpServer) (interface{}, error) {
-	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+	openCodeConfig, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	if _, exists := claudeCodeConfig.McpServers[server.Name]; exists {
+	if _, exists := openCodeConfig.McpServers[server.Name]; exists {
 		return nil, errors.ErrServerAlreadyExists
 	}
 
-	claudeCodeConfig.McpServers[server.Name] = McpServerConfig{
-		Command: server.Command,
-		Args:    server.Args,
-		Env:     server.Environment,
+	openCodeConfig.McpServers[server.Name] = McpServerConfig{
+		Type:    server.Type,
+		URL:     server.URL,
+		Headers: server.Headers,
 	}
 
 	slog.InfoContext(ctx, "added MCP server to configuration",
 		slog.String("server", server.Name))
 
-	return claudeCodeConfig, nil
+	return openCodeConfig, nil
 }
 
-func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (interface{}, error) {
-	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}) (interface{}, error) {
+	openCodeConfig, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	serverName := installer.GetServerName(vertical)
-	if _, exists := claudeCodeConfig.McpServers[serverName]; !exists {
+	serverName := installer.ServerName
+	if _, exists := openCodeConfig.McpServers[serverName]; !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
-	delete(claudeCodeConfig.McpServers, serverName)
+	delete(openCodeConfig.McpServers, serverName)
 
 	slog.InfoContext(ctx, "removed MCP server from configuration",
 		slog.String("server", serverName))
 
-	return claudeCodeConfig, nil
+	return openCodeConfig, nil
 }
 
 func (i *Installer) SaveConfig(ctx context.Context, config interface{}) error {
-	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+	openCodeConfig, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return errors.ErrConfigInvalid
 	}
@@ -160,7 +170,7 @@ func (i *Installer) SaveConfig(ctx context.Context, config interface{}) error {
 	}
 
 	data := map[string]interface{}{
-		mcpKey: claudeCodeConfig.McpServers,
+		mcpKey: openCodeConfig.McpServers,
 	}
 
 	if originalData, err := i.LoadJSONConfig(ctx, path); err == nil {
@@ -202,7 +212,7 @@ func (i *Installer) RestoreConfig(ctx context.Context, backupPath string) error 
 }
 
 func (i *Installer) ValidateConfig(ctx context.Context, config interface{}) error {
-	_, ok := config.(*ClaudeCodeConfig)
+	_, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return errors.ErrConfigInvalid
 	}
@@ -212,11 +222,11 @@ func (i *Installer) ValidateConfig(ctx context.Context, config interface{}) erro
 func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 	switch runtime.GOOS {
 	case "darwin", "linux":
-		cmd := exec.CommandContext(ctx, "pgrep", "-f", "claude.*code|claude-code")
+		cmd := exec.CommandContext(ctx, "pgrep", "-f", "opencode")
 		err := cmd.Run()
 		return err == nil, nil
 	case "windows":
-		cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq claude.exe")
+		cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq opencode.exe")
 		output, err := cmd.Output()
 		if err != nil {
 			return false, nil
@@ -227,76 +237,64 @@ func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 	}
 }
 
-func (i *Installer) HasMcpServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (bool, error) {
-	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+func (i *Installer) HasMcpServer(ctx context.Context, config interface{}) (bool, error) {
+	openCodeConfig, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return false, errors.ErrConfigInvalid
 	}
 
-	serverName := installer.GetServerName(vertical)
-	_, exists := claudeCodeConfig.McpServers[serverName]
+	serverName := installer.ServerName
+	_, exists := openCodeConfig.McpServers[serverName]
 	return exists, nil
 }
 
-func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}, vertical installer.VerticalType) (*installer.McpServer, error) {
-	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) (*installer.McpServer, error) {
+	openCodeConfig, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	serverName := installer.GetServerName(vertical)
-	serverConfig, exists := claudeCodeConfig.McpServers[serverName]
+	serverName := installer.ServerName
+	serverConfig, exists := openCodeConfig.McpServers[serverName]
 	if !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
 	return &installer.McpServer{
-		Name:        serverName,
-		Command:     serverConfig.Command,
-		Args:        serverConfig.Args,
-		Environment: serverConfig.Env,
+		Name:    serverName,
+		Type:    serverConfig.Type,
+		URL:     serverConfig.URL,
+		Headers: serverConfig.Headers,
 	}, nil
 }
 
-func (i *Installer) FormatConfig(ctx context.Context, config interface{}, onlyKirha bool) (string, error) {
-	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (string, error) {
+	openCodeConfig, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return "", errors.ErrConfigInvalid
 	}
 
-	if len(claudeCodeConfig.McpServers) == 0 {
+	if len(openCodeConfig.McpServers) == 0 {
 		return "No MCP servers configured", nil
 	}
 
-	// Separate servers into Kirha and Other categories
 	kirhaServers := make(map[string]McpServerConfig)
 	otherServers := make(map[string]McpServerConfig)
 
-	for name, server := range claudeCodeConfig.McpServers {
-		if strings.HasPrefix(name, "kirha-") {
+	for name, server := range openCodeConfig.McpServers {
+		if name == installer.ServerName || strings.HasPrefix(name, "kirha") {
 			kirhaServers[name] = server
 		} else {
 			otherServers[name] = server
 		}
 	}
 
-	// If onlyKirha is true, only show Kirha servers
-	if onlyKirha {
-		if len(kirhaServers) == 0 {
-			return "No Kirha MCP servers configured", nil
-		}
-		return i.formatServerSection("Kirha MCP Servers", kirhaServers), nil
-	}
-
-	// Format both sections
 	var result string
 
-	// Add Kirha section if any exist
 	if len(kirhaServers) > 0 {
 		result += i.formatServerSection("Kirha MCP Servers", kirhaServers)
 	}
 
-	// Add Other section if any exist
 	if len(otherServers) > 0 {
 		if len(kirhaServers) > 0 {
 			result += "\n"
@@ -313,12 +311,12 @@ func (i *Installer) formatServerSection(sectionTitle string, servers map[string]
 
 	for name, server := range servers {
 		result += fmt.Sprintf("Server: %s\n", name)
-		result += fmt.Sprintf("  Command: %s\n", server.Command)
-		result += fmt.Sprintf("  Args: %v\n", server.Args)
-		if len(server.Env) > 0 {
-			result += "  Environment:\n"
-			for k, v := range server.Env {
-				if k == "KIRHA_API_KEY" {
+		result += fmt.Sprintf("  Type: %s\n", server.Type)
+		result += fmt.Sprintf("  URL: %s\n", server.URL)
+		if len(server.Headers) > 0 {
+			result += "  Headers:\n"
+			for k, v := range server.Headers {
+				if k == "Authorization" {
 					result += fmt.Sprintf("    %s: %s\n", k, security.MaskAPIKey(v))
 				} else {
 					result += fmt.Sprintf("    %s: %s\n", k, v)
@@ -331,23 +329,21 @@ func (i *Installer) formatServerSection(sectionTitle string, servers map[string]
 	return result
 }
 
-func (i *Installer) FormatSpecificServer(ctx context.Context, config interface{}, vertical installer.VerticalType) (string, error) {
-	claudeCodeConfig, ok := config.(*ClaudeCodeConfig)
+func (i *Installer) FormatSpecificServer(ctx context.Context, config interface{}) (string, error) {
+	openCodeConfig, ok := config.(*OpenCodeConfig)
 	if !ok {
 		return "", errors.ErrConfigInvalid
 	}
 
-	serverName := installer.GetServerName(vertical)
-	serverConfig, exists := claudeCodeConfig.McpServers[serverName]
+	serverName := installer.ServerName
+	serverConfig, exists := openCodeConfig.McpServers[serverName]
 	if !exists {
 		return "", errors.ErrServerNotFound
 	}
 
-	// Create a map with only the specific server
 	specificServer := map[string]McpServerConfig{
 		serverName: serverConfig,
 	}
 
-	// Format just this one server
-	return i.formatServerSection(fmt.Sprintf("Kirha MCP Server (%s)", vertical), specificServer), nil
+	return i.formatServerSection("Kirha MCP Server", specificServer), nil
 }

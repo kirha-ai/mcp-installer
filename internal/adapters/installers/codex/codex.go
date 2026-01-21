@@ -1,13 +1,17 @@
-package cursor
+package codex
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"go.kirha.ai/mcp-installer/internal/adapters/installers"
 	"go.kirha.ai/mcp-installer/internal/core/domain/errors"
 	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
@@ -15,10 +19,19 @@ import (
 )
 
 const (
-	configFileName = "mcp.json"
-	appName        = "Cursor"
-	mcpKey         = "mcpServers"
+	configFileName = "config.toml"
+	configDir      = ".codex"
 )
+
+type CodexConfig struct {
+	McpServers map[string]McpServerConfig `toml:"mcp_servers"`
+}
+
+type McpServerConfig struct {
+	Type    string            `toml:"type"`
+	URL     string            `toml:"url"`
+	Headers map[string]string `toml:"headers"`
+}
 
 type Installer struct {
 	*installers.BaseInstaller
@@ -31,7 +44,12 @@ func New() *Installer {
 }
 
 func (i *Installer) GetConfigPath() (string, error) {
-	return i.GetPlatformConfigPath(appName, configFileName)
+	home, err := i.GetHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(home, configDir, configFileName), nil
 }
 
 func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
@@ -42,77 +60,97 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 
 	if !i.FileExists(path) {
 		slog.InfoContext(ctx, "config file not found, creating new one", slog.String("path", path))
-		return make(map[string]interface{}), nil
+		return &CodexConfig{
+			McpServers: make(map[string]McpServerConfig),
+		}, nil
 	}
 
-	return i.LoadJSONConfig(ctx, path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", errors.ErrConfigReadFailed, err)
+	}
+
+	var config CodexConfig
+	if _, err := toml.Decode(string(data), &config); err != nil {
+		return nil, fmt.Errorf("%w: %v", errors.ErrConfigInvalid, err)
+	}
+
+	if config.McpServers == nil {
+		config.McpServers = make(map[string]McpServerConfig)
+	}
+
+	return &config, nil
 }
 
 func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server *installer.McpServer) (interface{}, error) {
-	settings, ok := config.(map[string]interface{})
+	codexConfig, ok := config.(*CodexConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	mcpServers, ok := settings[mcpKey].(map[string]interface{})
-	if !ok {
-		mcpServers = make(map[string]interface{})
-	}
-
-	if _, exists := mcpServers[server.Name]; exists {
+	if _, exists := codexConfig.McpServers[server.Name]; exists {
 		return nil, errors.ErrServerAlreadyExists
 	}
 
-	mcpServers[server.Name] = map[string]interface{}{
-		"type":    server.Type,
-		"url":     server.URL,
-		"headers": server.Headers,
+	codexConfig.McpServers[server.Name] = McpServerConfig{
+		Type:    server.Type,
+		URL:     server.URL,
+		Headers: server.Headers,
 	}
-
-	settings[mcpKey] = mcpServers
 
 	slog.InfoContext(ctx, "added MCP server to configuration",
 		slog.String("server", server.Name))
 
-	return settings, nil
+	return codexConfig, nil
 }
 
 func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}) (interface{}, error) {
-	settings, ok := config.(map[string]interface{})
+	codexConfig, ok := config.(*CodexConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	mcpServers, ok := settings[mcpKey].(map[string]interface{})
-	if !ok {
-		return nil, errors.ErrServerNotFound
-	}
-
 	serverName := installer.ServerName
-	if _, exists := mcpServers[serverName]; !exists {
+	if _, exists := codexConfig.McpServers[serverName]; !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
-	delete(mcpServers, serverName)
+	delete(codexConfig.McpServers, serverName)
 
-	if len(mcpServers) == 0 {
-		delete(settings, mcpKey)
-	} else {
-		settings[mcpKey] = mcpServers
-	}
+	slog.InfoContext(ctx, "removed MCP server from configuration",
+		slog.String("server", serverName))
 
-	slog.InfoContext(ctx, "removed MCP server from configuration")
-
-	return settings, nil
+	return codexConfig, nil
 }
 
 func (i *Installer) SaveConfig(ctx context.Context, config interface{}) error {
+	codexConfig, ok := config.(*CodexConfig)
+	if !ok {
+		return errors.ErrConfigInvalid
+	}
+
 	path, err := i.GetConfigPath()
 	if err != nil {
 		return err
 	}
 
-	return i.SaveJSONConfig(ctx, path, config)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("%w: %v", errors.ErrConfigWriteFailed, err)
+	}
+
+	var buf bytes.Buffer
+	encoder := toml.NewEncoder(&buf)
+	if err := encoder.Encode(codexConfig); err != nil {
+		return fmt.Errorf("%w: %v", errors.ErrConfigWriteFailed, err)
+	}
+
+	if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("%w: %v", errors.ErrConfigWriteFailed, err)
+	}
+
+	slog.InfoContext(ctx, "saved configuration", slog.String("path", path))
+	return nil
 }
 
 func (i *Installer) BackupConfig(ctx context.Context) (string, error) {
@@ -143,7 +181,7 @@ func (i *Installer) RestoreConfig(ctx context.Context, backupPath string) error 
 }
 
 func (i *Installer) ValidateConfig(ctx context.Context, config interface{}) error {
-	_, ok := config.(map[string]interface{})
+	_, ok := config.(*CodexConfig)
 	if !ok {
 		return errors.ErrConfigInvalid
 	}
@@ -152,107 +190,71 @@ func (i *Installer) ValidateConfig(ctx context.Context, config interface{}) erro
 
 func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 	switch runtime.GOOS {
-	case "darwin":
-		cmd := exec.CommandContext(ctx, "pgrep", "-x", "Cursor")
+	case "darwin", "linux":
+		cmd := exec.CommandContext(ctx, "pgrep", "-f", "codex")
 		err := cmd.Run()
 		return err == nil, nil
 	case "windows":
-		cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq Cursor.exe")
+		cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq codex.exe")
 		output, err := cmd.Output()
 		if err != nil {
 			return false, nil
 		}
 		return len(output) > 0 && string(output) != "INFO: No tasks are running which match the specified criteria.", nil
-	case "linux":
-		cmd := exec.CommandContext(ctx, "pgrep", "-x", "cursor")
-		err := cmd.Run()
-		return err == nil, nil
 	default:
 		return false, fmt.Errorf("%w: %s", errors.ErrPlatformNotSupported, runtime.GOOS)
 	}
 }
 
 func (i *Installer) HasMcpServer(ctx context.Context, config interface{}) (bool, error) {
-	settings, ok := config.(map[string]interface{})
+	codexConfig, ok := config.(*CodexConfig)
 	if !ok {
 		return false, errors.ErrConfigInvalid
 	}
 
-	mcpServers, ok := settings[mcpKey].(map[string]interface{})
-	if !ok {
-		return false, nil
-	}
-
 	serverName := installer.ServerName
-	_, exists := mcpServers[serverName]
+	_, exists := codexConfig.McpServers[serverName]
 	return exists, nil
 }
 
 func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) (*installer.McpServer, error) {
-	settings, ok := config.(map[string]interface{})
+	codexConfig, ok := config.(*CodexConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	mcpServers, ok := settings[mcpKey].(map[string]interface{})
-	if !ok {
-		return nil, errors.ErrServerNotFound
-	}
-
 	serverName := installer.ServerName
-	serverConfig, exists := mcpServers[serverName]
+	serverConfig, exists := codexConfig.McpServers[serverName]
 	if !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
-	serverMap, ok := serverConfig.(map[string]interface{})
-	if !ok {
-		return nil, errors.ErrConfigInvalid
-	}
-
-	mcpServer := &installer.McpServer{
-		Name: serverName,
-	}
-
-	if serverType, ok := serverMap["type"].(string); ok {
-		mcpServer.Type = serverType
-	}
-
-	if url, ok := serverMap["url"].(string); ok {
-		mcpServer.URL = url
-	}
-
-	if headers, ok := serverMap["headers"].(map[string]interface{}); ok {
-		mcpServer.Headers = make(map[string]string)
-		for k, v := range headers {
-			if vStr, ok := v.(string); ok {
-				mcpServer.Headers[k] = vStr
-			}
-		}
-	}
-
-	return mcpServer, nil
+	return &installer.McpServer{
+		Name:    serverName,
+		Type:    serverConfig.Type,
+		URL:     serverConfig.URL,
+		Headers: serverConfig.Headers,
+	}, nil
 }
 
 func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (string, error) {
-	settings, ok := config.(map[string]interface{})
+	codexConfig, ok := config.(*CodexConfig)
 	if !ok {
 		return "", errors.ErrConfigInvalid
 	}
 
-	mcpServers, ok := settings[mcpKey].(map[string]interface{})
-	if !ok || len(mcpServers) == 0 {
+	if len(codexConfig.McpServers) == 0 {
 		return "No MCP servers configured", nil
 	}
 
-	kirhaServers := make(map[string]interface{})
-	otherServers := make(map[string]interface{})
+	kirhaServers := make(map[string]McpServerConfig)
+	otherServers := make(map[string]McpServerConfig)
 
-	for name, serverConfig := range mcpServers {
+	for name, server := range codexConfig.McpServers {
 		if name == installer.ServerName || strings.HasPrefix(name, "kirha") {
-			kirhaServers[name] = serverConfig
+			kirhaServers[name] = server
 		} else {
-			otherServers[name] = serverConfig
+			otherServers[name] = server
 		}
 	}
 
@@ -272,35 +274,21 @@ func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (strin
 	return result, nil
 }
 
-func (i *Installer) formatServerSection(sectionTitle string, servers map[string]interface{}) string {
+func (i *Installer) formatServerSection(sectionTitle string, servers map[string]McpServerConfig) string {
 	var result string
 	result += fmt.Sprintf("=== %s ===\n\n", sectionTitle)
 
-	for name, serverConfig := range servers {
-		serverMap, ok := serverConfig.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
+	for name, server := range servers {
 		result += fmt.Sprintf("Server: %s\n", name)
-
-		if serverType, ok := serverMap["type"].(string); ok {
-			result += fmt.Sprintf("  Type: %s\n", serverType)
-		}
-
-		if url, ok := serverMap["url"].(string); ok {
-			result += fmt.Sprintf("  URL: %s\n", url)
-		}
-
-		if headers, ok := serverMap["headers"].(map[string]interface{}); ok && len(headers) > 0 {
+		result += fmt.Sprintf("  Type: %s\n", server.Type)
+		result += fmt.Sprintf("  URL: %s\n", server.URL)
+		if len(server.Headers) > 0 {
 			result += "  Headers:\n"
-			for k, v := range headers {
-				if vStr, ok := v.(string); ok {
-					if k == "Authorization" {
-						result += fmt.Sprintf("    %s: %s\n", k, security.MaskAPIKey(vStr))
-					} else {
-						result += fmt.Sprintf("    %s: %s\n", k, vStr)
-					}
+			for k, v := range server.Headers {
+				if k == "Authorization" {
+					result += fmt.Sprintf("    %s: %s\n", k, security.MaskAPIKey(v))
+				} else {
+					result += fmt.Sprintf("    %s: %s\n", k, v)
 				}
 			}
 		}
@@ -311,23 +299,18 @@ func (i *Installer) formatServerSection(sectionTitle string, servers map[string]
 }
 
 func (i *Installer) FormatSpecificServer(ctx context.Context, config interface{}) (string, error) {
-	settings, ok := config.(map[string]interface{})
+	codexConfig, ok := config.(*CodexConfig)
 	if !ok {
 		return "", errors.ErrConfigInvalid
 	}
 
-	mcpServers, ok := settings[mcpKey].(map[string]interface{})
-	if !ok {
-		return "", errors.ErrServerNotFound
-	}
-
 	serverName := installer.ServerName
-	serverConfig, exists := mcpServers[serverName]
+	serverConfig, exists := codexConfig.McpServers[serverName]
 	if !exists {
 		return "", errors.ErrServerNotFound
 	}
 
-	specificServer := map[string]interface{}{
+	specificServer := map[string]McpServerConfig{
 		serverName: serverConfig,
 	}
 

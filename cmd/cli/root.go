@@ -12,29 +12,28 @@ func NewCmdRoot() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mcp-installer",
 		Short: "MCP Installer - Install Kirha MCP server for various development environments",
-		Long: `MCP Installer is a CLI tool that simplifies the installation of Kirha MCP 
+		Long: `MCP Installer is a CLI tool that simplifies the installation of Kirha MCP
 (Model Context Protocol) server across multiple development environments.
 
 Supported clients:
-  - claude      Claude Desktop application
+  - claudecode  Claude Code CLI tool
   - cursor      Cursor IDE
-  - vscode      Visual Studio Code
-  - claude-code Claude Code CLI tool
-  - docker      Docker Compose setup`,
-		Example: `  # Install for Claude Desktop
-  mcp-installer install --client claude --key your-api-key-here
+  - codex       OpenAI Codex CLI
+  - opencode    OpenCode IDE`,
+		Example: `  # Install for Claude Code CLI
+  mcp-installer install --client claudecode --key your-api-key-here
 
-  # Update configuration for Docker
-  mcp-installer update --client docker --key your-new-api-key
+  # Update configuration for Cursor
+  mcp-installer update --client cursor --key your-new-api-key
 
-  # Remove from Cursor
-  mcp-installer remove --client cursor
+  # Remove from Codex
+  mcp-installer remove --client codex
 
   # Show current configuration
-  mcp-installer show --client claude
+  mcp-installer show --client claudecode
 
   # Dry run to see what would be changed
-  mcp-installer install --client vscode --key your-api-key-here --dry-run`,
+  mcp-installer install --client opencode --key your-api-key-here --dry-run`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {

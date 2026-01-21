@@ -86,7 +86,7 @@ func (a *Application) install(ctx context.Context, config *installer.Config) (*i
 		return nil, err
 	}
 
-	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
+	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
 		return nil, err
@@ -114,12 +114,6 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 	slog.InfoContext(ctx, "starting update",
 		slog.String("client", string(config.Client)),
 		slog.Bool("dry_run", config.DryRun))
-
-	if config.ApiKey != "" {
-		if err := a.validateApiKey(config.ApiKey); err != nil {
-			return nil, err
-		}
-	}
 
 	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
 	if err != nil {
@@ -151,7 +145,7 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 		return nil, err
 	}
 
-	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
+	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
 		return nil, err
@@ -162,19 +156,20 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 		return nil, errors.ErrServerNotFoundForUpdate
 	}
 
-	existingServer, err := clientInstaller.GetMcpServerConfig(ctx, currentConfig, config.Vertical)
+	existingServer, err := clientInstaller.GetMcpServerConfig(ctx, currentConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get existing server config", slog.String("error", err.Error()))
 		return nil, err
 	}
-	
+
 	if config.ApiKey == "" {
-		config.ApiKey = existingServer.Environment["KIRHA_API_KEY"]
-	}
-	
-	if !config.PlanModeSet {
-		currentPlanMode := existingServer.Environment["TOOL_PLAN_MODE_ENABLED"] == "true"
-		config.EnablePlanMode = currentPlanMode
+		if auth, ok := existingServer.Headers["Authorization"]; ok {
+			config.ApiKey = strings.TrimPrefix(auth, "Bearer ")
+		}
+	} else {
+		if err := a.validateApiKey(config.ApiKey); err != nil {
+			return nil, err
+		}
 	}
 
 	if config.DryRun {
@@ -187,7 +182,7 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 		}, nil
 	}
 
-	configWithoutServer, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
+	configWithoutServer, err := clientInstaller.RemoveMcpServer(ctx, currentConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to remove existing server", slog.String("error", err.Error()))
 		return nil, err
@@ -231,7 +226,7 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 		return nil, err
 	}
 
-	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
+	exists, err := clientInstaller.HasMcpServer(ctx, currentConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
 		return nil, err
@@ -257,7 +252,7 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 		slog.ErrorContext(ctx, "failed to create backup", slog.String("error", err.Error()))
 	}
 
-	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
+	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to remove MCP server", slog.String("error", err.Error()))
 
@@ -309,7 +304,6 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 	backupPath, err := clientInstaller.BackupConfig(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create backup", slog.String("error", err.Error()))
-		// Continue anyway, backup is not critical
 	}
 
 	if err := clientInstaller.ValidateConfig(ctx, currentConfig); err != nil {
@@ -317,7 +311,7 @@ func (a *Application) performInstallOrUpdate(ctx context.Context, config *instal
 		return nil, err
 	}
 
-	mcpServer := installer.NewKirhaMcpServer(config.ApiKey, config.Vertical, config.EnablePlanMode)
+	mcpServer := installer.NewKirhaRemoteMcpServer(config.ApiKey)
 
 	updatedConfig, err := clientInstaller.AddMcpServer(ctx, currentConfig, mcpServer)
 	if err != nil {
@@ -417,75 +411,32 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 		}, nil
 	}
 
-	var hasServer bool
+	hasServer, err := clientInstaller.HasMcpServer(ctx, currentConfig)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
+		return nil, err
+	}
+
 	var serverConfig *installer.McpServer
-
-	// If specific vertical is requested, check for that specific server
-	if config.Vertical != "" {
-		hasServer, err = clientInstaller.HasMcpServer(ctx, currentConfig, config.Vertical)
+	if hasServer {
+		serverConfig, err = clientInstaller.GetMcpServerConfig(ctx, currentConfig)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to check if server exists", slog.String("error", err.Error()))
+			slog.ErrorContext(ctx, "failed to get server config", slog.String("error", err.Error()))
 			return nil, err
 		}
-
-		if hasServer {
-			serverConfig, err = clientInstaller.GetMcpServerConfig(ctx, currentConfig, config.Vertical)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to get server config", slog.String("error", err.Error()))
-				return nil, err
-			}
-		}
-	} else {
-		// If no specific vertical requested, check if any Kirha servers exist
-		hasCrypto, err := clientInstaller.HasMcpServer(ctx, currentConfig, installer.VerticalTypeCrypto)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check if crypto server exists", slog.String("error", err.Error()))
-			return nil, err
-		}
-
-		// TODO : Add more verticals as needed
-		hasServer = hasCrypto
 	}
 
-	// Handle vertical filtering by adding a new method to the interface
-	var fullConfig string
-
-	if config.Vertical != "" && hasServer {
-		// Format only the specific vertical's server configuration
-		fullConfig, err = clientInstaller.FormatSpecificServer(ctx, currentConfig, config.Vertical)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to format specific server config", slog.String("error", err.Error()))
-			// Fall back to showing all servers
-			fullConfig, err = clientInstaller.FormatConfig(ctx, currentConfig, config.OnlyKirha)
-		}
-	} else {
-		fullConfig, err = clientInstaller.FormatConfig(ctx, currentConfig, config.OnlyKirha)
-	}
-
+	fullConfig, err := clientInstaller.FormatConfig(ctx, currentConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to format config", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	var message string
-	if config.Vertical != "" {
-		// Showing specific vertical
-		if hasServer {
-			message = fmt.Sprintf("MCP configuration for %s (vertical: %s):\n\n%s", config.Client, config.Vertical, fullConfig)
-		} else {
-			if fullConfig == "No MCP servers configured" {
-				message = fmt.Sprintf("No MCP servers configured for %s", config.Client)
-			} else {
-				message = fmt.Sprintf("Kirha MCP server not found for %s %s vertical, but other servers are configured:\n\n%s", config.Client, config.Vertical, fullConfig)
-			}
-		}
+	if fullConfig == "No MCP servers configured" {
+		message = fmt.Sprintf("No MCP servers configured for %s", config.Client)
 	} else {
-		// Showing all servers
-		if fullConfig == "No MCP servers configured" {
-			message = fmt.Sprintf("No MCP servers configured for %s", config.Client)
-		} else {
-			message = fmt.Sprintf("MCP configuration for %s:\n\n%s", config.Client, fullConfig)
-		}
+		message = fmt.Sprintf("MCP configuration for %s:\n\n%s", config.Client, fullConfig)
 	}
 
 	slog.InfoContext(ctx, "configuration displayed successfully",
@@ -499,99 +450,6 @@ func (a *Application) show(ctx context.Context, config *installer.Config) (*inst
 		ServerConfig: serverConfig,
 		FullConfig:   fullConfig,
 		Message:      message,
-	}, nil
-}
-
-func (a *Application) Uninstall(ctx context.Context, config *installer.Config) (*installer.InstallResult, error) {
-	slog.InfoContext(ctx, "starting uninstallation",
-		slog.String("client", string(config.Client)),
-		slog.Bool("dry_run", config.DryRun))
-
-	clientInstaller, err := a.installerFactory.GetInstaller(ctx, config.Client)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get installer for client",
-			slog.String("error", err.Error()),
-			slog.String("client", string(config.Client)))
-		return nil, err
-	}
-
-	running, err := clientInstaller.IsClientRunning(ctx)
-	if err != nil {
-		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
-	}
-	if running && !config.DryRun {
-		slog.WarnContext(ctx, "client is currently running",
-			slog.String("client", string(config.Client)))
-		return nil, errors.ErrClientRunning
-	}
-
-	configPath, err := clientInstaller.GetConfigPath()
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get config path", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	if config.DryRun {
-		slog.InfoContext(ctx, "dry run - would modify config",
-			slog.String("path", configPath))
-		return &installer.InstallResult{
-			Success:    true,
-			ConfigPath: configPath,
-			Message:    fmt.Sprintf("Would remove Kirha MCP server from %s", configPath),
-		}, nil
-	}
-
-	backupPath, err := clientInstaller.BackupConfig(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create backup", slog.String("error", err.Error()))
-		// Continue anyway, backup is not critical
-	}
-
-	currentConfig, err := clientInstaller.LoadConfig(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load config", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	updatedConfig, err := clientInstaller.RemoveMcpServer(ctx, currentConfig, config.Vertical)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to remove MCP server", slog.String("error", err.Error()))
-
-		if backupPath != "" {
-			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
-			}
-		}
-
-		return nil, err
-	}
-
-	if err := clientInstaller.SaveConfig(ctx, updatedConfig); err != nil {
-		slog.ErrorContext(ctx, "failed to save config", slog.String("error", err.Error()))
-
-		if backupPath != "" {
-			if restoreErr := clientInstaller.RestoreConfig(ctx, backupPath); restoreErr != nil {
-				slog.ErrorContext(ctx, "failed to restore backup", slog.String("error", restoreErr.Error()))
-			}
-		}
-
-		return nil, err
-	}
-
-	message := fmt.Sprintf("Successfully removed Kirha MCP server from %s", config.Client)
-	if running {
-		message += ". Please restart the application to apply changes."
-	}
-
-	slog.InfoContext(ctx, "uninstallation completed successfully",
-		slog.String("config_path", configPath),
-		slog.String("backup_path", backupPath))
-
-	return &installer.InstallResult{
-		Success:    true,
-		ConfigPath: configPath,
-		BackupPath: backupPath,
-		Message:    message,
 	}, nil
 }
 
