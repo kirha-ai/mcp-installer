@@ -182,4 +182,4 @@ jobs:
           echo "✅ Package tests passed"
 
       - name: Publish to NPM
-        run: npm publish --access public
+        run: npm publish --access public --provenance
