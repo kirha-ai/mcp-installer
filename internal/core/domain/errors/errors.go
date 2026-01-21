@@ -32,7 +32,6 @@ var (
 
 	ErrPlatformNotSupported = errors.New("platform not supported")
 
-	ErrUnknownOperation   = errors.New("unknown operation")
-	ErrUnsupportedClient  = errors.New("unsupported client")
-	ErrUnsupportedVertical = errors.New("unsupported vertical")
+	ErrUnknownOperation  = errors.New("unknown operation")
+	ErrUnsupportedClient = errors.New("unsupported client")
 )

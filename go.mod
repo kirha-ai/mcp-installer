@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.24.3
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/google/wire v0.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.9.1

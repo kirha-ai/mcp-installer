@@ -10,11 +10,10 @@ func TestClientType_String(t *testing.T) {
 		client   ClientType
 		expected string
 	}{
-		{"Claude", ClientTypeClaude, "claude"},
+		{"Claudecode", ClientTypeClaudecode, "claudecode"},
 		{"Cursor", ClientTypeCursor, "cursor"},
-		{"VSCode", ClientTypeVSCode, "vscode"},
-		{"Claude Code", ClientTypeClaudeCode, "claude-code"},
-		{"Docker", ClientTypeDocker, "docker"},
+		{"Codex", ClientTypeCodex, "codex"},
+		{"Opencode", ClientTypeOpencode, "opencode"},
 	}
 
 	for _, tt := range tests {
@@ -26,65 +25,41 @@ func TestClientType_String(t *testing.T) {
 	}
 }
 
-func TestNewKirhaMcpServer(t *testing.T) {
+func TestNewKirhaRemoteMcpServer(t *testing.T) {
 	tests := []struct {
-		name           string
-		apiKey         string
-		vertical       VerticalType
-		enablePlanMode bool
-		expectedPlanMode string
+		name   string
+		apiKey string
 	}{
 		{
-			name:           "Plan mode disabled",
-			apiKey:         "test-api-key-123",
-			vertical:       VerticalTypeCrypto,
-			enablePlanMode: false,
-			expectedPlanMode: "false",
+			name:   "Valid API key",
+			apiKey: "test-api-key-123",
 		},
 		{
-			name:           "Plan mode enabled",
-			apiKey:         "test-api-key-456",
-			vertical:       VerticalTypeCrypto,
-			enablePlanMode: true,
-			expectedPlanMode: "true",
+			name:   "Another API key",
+			apiKey: "test-api-key-456",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewKirhaMcpServer(tt.apiKey, tt.vertical, tt.enablePlanMode)
+			server := NewKirhaRemoteMcpServer(tt.apiKey)
 
-			expectedName := "kirha-crypto"
+			expectedName := "kirha"
 			if server.Name != expectedName {
-				t.Errorf("NewKirhaMcpServer().Name = %v, want %v", server.Name, expectedName)
+				t.Errorf("NewKirhaRemoteMcpServer().Name = %v, want %v", server.Name, expectedName)
 			}
 
-			if server.Command != "npx" {
-				t.Errorf("NewKirhaMcpServer().Command = %v, want %v", server.Command, "npx")
+			if server.Type != "http" {
+				t.Errorf("NewKirhaRemoteMcpServer().Type = %v, want %v", server.Type, "http")
 			}
 
-			expectedArgs := []string{"-y", "@kirha/mcp-gateway"}
-			if len(server.Args) != len(expectedArgs) {
-				t.Errorf("NewKirhaMcpServer().Args length = %v, want %v", len(server.Args), len(expectedArgs))
+			if server.URL != ServerURL {
+				t.Errorf("NewKirhaRemoteMcpServer().URL = %v, want %v", server.URL, ServerURL)
 			}
 
-			for i, arg := range server.Args {
-				if arg != expectedArgs[i] {
-					t.Errorf("NewKirhaMcpServer().Args[%d] = %v, want %v", i, arg, expectedArgs[i])
-				}
-			}
-
-			if server.Environment["KIRHA_API_KEY"] != tt.apiKey {
-				t.Errorf("NewKirhaMcpServer().Environment[KIRHA_API_KEY] = %v, want %v", server.Environment["KIRHA_API_KEY"], tt.apiKey)
-			}
-
-			expectedVerticalID := VerticalIDs[tt.vertical]
-			if server.Environment["VERTICAL_ID"] != expectedVerticalID {
-				t.Errorf("NewKirhaMcpServer().Environment[VERTICAL_ID] = %v, want %v", server.Environment["VERTICAL_ID"], expectedVerticalID)
-			}
-
-			if server.Environment["TOOL_PLAN_MODE_ENABLED"] != tt.expectedPlanMode {
-				t.Errorf("NewKirhaMcpServer().Environment[TOOL_PLAN_MODE_ENABLED] = %v, want %v", server.Environment["TOOL_PLAN_MODE_ENABLED"], tt.expectedPlanMode)
+			expectedAuth := "Bearer " + tt.apiKey
+			if server.Headers["Authorization"] != expectedAuth {
+				t.Errorf("NewKirhaRemoteMcpServer().Headers[Authorization] = %v, want %v", server.Headers["Authorization"], expectedAuth)
 			}
 		})
 	}
@@ -92,12 +67,12 @@ func TestNewKirhaMcpServer(t *testing.T) {
 
 func TestConfig_Validation(t *testing.T) {
 	config := &Config{
-		Client: ClientTypeClaude,
+		Client: ClientTypeClaudecode,
 		ApiKey: "test-key",
 	}
 
-	if config.Client != ClientTypeClaude {
-		t.Errorf("Config.Client = %v, want %v", config.Client, ClientTypeClaude)
+	if config.Client != ClientTypeClaudecode {
+		t.Errorf("Config.Client = %v, want %v", config.Client, ClientTypeClaudecode)
 	}
 
 	if config.ApiKey != "test-key" {
