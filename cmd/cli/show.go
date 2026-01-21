@@ -31,7 +31,7 @@ and other MCP servers that are configured. API keys will be masked for security.
   # Show configuration for OpenCode
   mcp-installer show --client opencode`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationShow, client, "", configPath, false, verbose)
+			return runOperation(cmd, installer.OperationShow, client, "", configPath, false, verbose, false)
 		},
 	}
 

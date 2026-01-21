@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	configFileName = "config.json"
-	configDir      = ".claude-code"
+	configFileName = ".claude.json"
 	mcpKey         = "mcpServers"
 )
 
@@ -47,7 +46,7 @@ func (i *Installer) GetConfigPath() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(home, configDir, configFileName), nil
+	return filepath.Join(home, configFileName), nil
 }
 
 func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {

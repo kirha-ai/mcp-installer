@@ -11,7 +11,7 @@ import (
 	"go.kirha.ai/mcp-installer/internal/core/domain/installer"
 )
 
-func runOperation(cmd *cobra.Command, operation installer.OperationType, client, apiKey, configPath string, dryRun, verbose bool) error {
+func runOperation(cmd *cobra.Command, operation installer.OperationType, client, apiKey, configPath string, dryRun, verbose, force bool) error {
 	clientType, err := validateClient(client)
 	if err != nil {
 		return err
@@ -28,6 +28,7 @@ func runOperation(cmd *cobra.Command, operation installer.OperationType, client,
 		Operation:  operation,
 		DryRun:     dryRun,
 		Verbose:    verbose,
+		Force:      force,
 	}
 
 	app, err := di.ProvideInstallerApplication()

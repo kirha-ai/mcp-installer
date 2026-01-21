@@ -68,7 +68,7 @@ func (a *Application) install(ctx context.Context, config *installer.Config) (*i
 	if err != nil {
 		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
 	}
-	if running && !config.DryRun {
+	if running && !config.DryRun && !config.Force {
 		slog.WarnContext(ctx, "client is currently running",
 			slog.String("client", string(config.Client)))
 		return nil, errors.ErrClientRunning
@@ -127,7 +127,7 @@ func (a *Application) update(ctx context.Context, config *installer.Config) (*in
 	if err != nil {
 		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
 	}
-	if running && !config.DryRun {
+	if running && !config.DryRun && !config.Force {
 		slog.WarnContext(ctx, "client is currently running",
 			slog.String("client", string(config.Client)))
 		return nil, errors.ErrClientRunning
@@ -208,7 +208,7 @@ func (a *Application) remove(ctx context.Context, config *installer.Config) (*in
 	if err != nil {
 		slog.WarnContext(ctx, "failed to check if client is running", slog.String("error", err.Error()))
 	}
-	if running && !config.DryRun {
+	if running && !config.DryRun && !config.Force {
 		slog.WarnContext(ctx, "client is currently running",
 			slog.String("client", string(config.Client)))
 		return nil, errors.ErrClientRunning

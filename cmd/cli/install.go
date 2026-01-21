@@ -12,6 +12,7 @@ func NewCmdInstall() *cobra.Command {
 		configPath string
 		dryRun     bool
 		verbose    bool
+		force      bool
 	)
 
 	cmd := &cobra.Command{
@@ -33,7 +34,7 @@ If the server already exists, the command will fail with a suggestion to use 'up
   # Install for OpenCode with verbose output
   mcp-installer install --client opencode --key your-api-key-here --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runOperation(cmd, installer.OperationInstall, client, apiKey, configPath, dryRun, verbose)
+			return runOperation(cmd, installer.OperationInstall, client, apiKey, configPath, dryRun, verbose, force)
 		},
 	}
 
@@ -42,6 +43,7 @@ If the server already exists, the command will fail with a suggestion to use 'up
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force installation even if the client is running")
 
 	_ = cmd.MarkFlagRequired("client")
 	_ = cmd.MarkFlagRequired("key")

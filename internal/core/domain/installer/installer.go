@@ -36,6 +36,7 @@ type Config struct {
 	Operation  OperationType
 	DryRun     bool
 	Verbose    bool
+	Force      bool
 }
 
 type McpServer struct {
