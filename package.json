@@ -1,6 +1,6 @@
 {
   "name": "@kirha/mcp-installer",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "The MCP Installer is a CLI tool for installing and managing the Kirha MCP Gateway across various LLM interfaces.",
   "main": "bin/kirha-mcp-installer.js",
   "bin": {
