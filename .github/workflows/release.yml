@@ -133,6 +133,9 @@ jobs:
     name: Publish NPM Package
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -146,7 +149,7 @@ jobs:
       - name: Remove bundled binaries
         run: |
           rm -rf bin/* || true
-          
+
       - name: Copy JavaScript wrapper to bin
         run: |
           mkdir -p bin
@@ -157,12 +160,12 @@ jobs:
       - name: Test package before publishing
         run: |
           echo "Testing package structure before publishing..."
-          
+
           # Test syntax
           node -c bin/kirha-mcp-installer.js
           node -c scripts/install.js
           node -c scripts/binary-utils.js
-          
+
           # Test binary-utils
           node -e "
             const { getBinaryInfo, getBinaryName } = require('./scripts/binary-utils.js');
@@ -172,13 +175,11 @@ jobs:
               throw new Error('Invalid binary info');
             }
           "
-          
+
           # Test npm pack
           npm pack --dry-run
-          
+
           echo "✅ Package tests passed"
 
       - name: Publish to NPM
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
