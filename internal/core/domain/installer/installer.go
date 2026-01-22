@@ -14,6 +14,7 @@ const (
 	ClientTypeCodex      ClientType = "codex"
 	ClientTypeOpencode   ClientType = "opencode"
 	ClientTypeGemini     ClientType = "gemini"
+	ClientTypeDroid      ClientType = "droid"
 )
 
 type OperationType string

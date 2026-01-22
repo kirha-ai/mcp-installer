@@ -1,4 +1,4 @@
-package gemini
+package droid
 
 import (
 	"context"
@@ -16,21 +16,20 @@ import (
 )
 
 const (
-	configFileName = "settings.json"
-	configDir      = ".gemini"
+	configFileName = "mcp.json"
+	configDir      = ".factory"
 	mcpKey         = "mcpServers"
 )
 
-type GeminiConfig struct {
+type DroidConfig struct {
 	McpServers map[string]McpServerConfig `json:"mcpServers,omitempty"`
 }
 
 type McpServerConfig struct {
-	// Gemini CLI consolidated format: url + type
-	URL     string            `json:"url"`
-	Type    string            `json:"type,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
-	Timeout int               `json:"timeout,omitempty"`
+	Type     string            `json:"type"`
+	URL      string            `json:"url"`
+	Headers  map[string]string `json:"headers,omitempty"`
+	Disabled bool              `json:"disabled,omitempty"`
 }
 
 type Installer struct {
@@ -60,7 +59,7 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 
 	if !i.FileExists(path) {
 		slog.InfoContext(ctx, "config file not found, creating new one", slog.String("path", path))
-		return &GeminiConfig{
+		return &DroidConfig{
 			McpServers: make(map[string]McpServerConfig),
 		}, nil
 	}
@@ -70,7 +69,7 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 		return nil, err
 	}
 
-	config := &GeminiConfig{
+	config := &DroidConfig{
 		McpServers: make(map[string]McpServerConfig),
 	}
 
@@ -79,16 +78,16 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 			if serverMap, ok := serverData.(map[string]interface{}); ok {
 				mcpServer := McpServerConfig{}
 
-				if url, ok := serverMap["url"].(string); ok {
-					mcpServer.URL = url
-				}
-
 				if serverType, ok := serverMap["type"].(string); ok {
 					mcpServer.Type = serverType
 				}
 
-				if timeout, ok := serverMap["timeout"].(float64); ok {
-					mcpServer.Timeout = int(timeout)
+				if url, ok := serverMap["url"].(string); ok {
+					mcpServer.URL = url
+				}
+
+				if disabled, ok := serverMap["disabled"].(bool); ok {
+					mcpServer.Disabled = disabled
 				}
 
 				if headers, ok := serverMap["headers"].(map[string]interface{}); ok {
@@ -109,56 +108,48 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 }
 
 func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server *installer.McpServer) (interface{}, error) {
-	geminiConfig, ok := config.(*GeminiConfig)
+	droidConfig, ok := config.(*DroidConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
-	if _, exists := geminiConfig.McpServers[server.Name]; exists {
+	if _, exists := droidConfig.McpServers[server.Name]; exists {
 		return nil, errors.ErrServerAlreadyExists
 	}
 
-	// Add Content-Type header for Gemini CLI
-	headers := make(map[string]string)
-	for k, v := range server.Headers {
-		headers[k] = v
-	}
-	headers["Content-Type"] = "application/json"
-
-	geminiConfig.McpServers[server.Name] = McpServerConfig{
+	droidConfig.McpServers[server.Name] = McpServerConfig{
+		Type:    server.Type,
 		URL:     server.URL,
-		Type:    "http",
-		Headers: headers,
-		Timeout: 30000,
+		Headers: server.Headers,
 	}
 
 	slog.InfoContext(ctx, "added MCP server to configuration",
 		slog.String("server", server.Name))
 
-	return geminiConfig, nil
+	return droidConfig, nil
 }
 
 func (i *Installer) RemoveMcpServer(ctx context.Context, config interface{}) (interface{}, error) {
-	geminiConfig, ok := config.(*GeminiConfig)
+	droidConfig, ok := config.(*DroidConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
 	serverName := installer.ServerName
-	if _, exists := geminiConfig.McpServers[serverName]; !exists {
+	if _, exists := droidConfig.McpServers[serverName]; !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
-	delete(geminiConfig.McpServers, serverName)
+	delete(droidConfig.McpServers, serverName)
 
 	slog.InfoContext(ctx, "removed MCP server from configuration",
 		slog.String("server", serverName))
 
-	return geminiConfig, nil
+	return droidConfig, nil
 }
 
 func (i *Installer) SaveConfig(ctx context.Context, config interface{}) error {
-	geminiConfig, ok := config.(*GeminiConfig)
+	droidConfig, ok := config.(*DroidConfig)
 	if !ok {
 		return errors.ErrConfigInvalid
 	}
@@ -169,7 +160,7 @@ func (i *Installer) SaveConfig(ctx context.Context, config interface{}) error {
 	}
 
 	data := map[string]interface{}{
-		mcpKey: geminiConfig.McpServers,
+		mcpKey: droidConfig.McpServers,
 	}
 
 	if originalData, err := i.LoadJSONConfig(ctx, path); err == nil {
@@ -211,7 +202,7 @@ func (i *Installer) RestoreConfig(ctx context.Context, backupPath string) error 
 }
 
 func (i *Installer) ValidateConfig(ctx context.Context, config interface{}) error {
-	_, ok := config.(*GeminiConfig)
+	_, ok := config.(*DroidConfig)
 	if !ok {
 		return errors.ErrConfigInvalid
 	}
@@ -221,11 +212,11 @@ func (i *Installer) ValidateConfig(ctx context.Context, config interface{}) erro
 func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 	switch runtime.GOOS {
 	case "darwin", "linux":
-		cmd := exec.CommandContext(ctx, "pgrep", "-f", "gemini")
+		cmd := exec.CommandContext(ctx, "pgrep", "-f", "droid|factory")
 		err := cmd.Run()
 		return err == nil, nil
 	case "windows":
-		cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq gemini.exe")
+		cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq droid.exe")
 		output, err := cmd.Output()
 		if err != nil {
 			return false, nil
@@ -237,50 +228,50 @@ func (i *Installer) IsClientRunning(ctx context.Context) (bool, error) {
 }
 
 func (i *Installer) HasMcpServer(ctx context.Context, config interface{}) (bool, error) {
-	geminiConfig, ok := config.(*GeminiConfig)
+	droidConfig, ok := config.(*DroidConfig)
 	if !ok {
 		return false, errors.ErrConfigInvalid
 	}
 
 	serverName := installer.ServerName
-	_, exists := geminiConfig.McpServers[serverName]
+	_, exists := droidConfig.McpServers[serverName]
 	return exists, nil
 }
 
 func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) (*installer.McpServer, error) {
-	geminiConfig, ok := config.(*GeminiConfig)
+	droidConfig, ok := config.(*DroidConfig)
 	if !ok {
 		return nil, errors.ErrConfigInvalid
 	}
 
 	serverName := installer.ServerName
-	serverConfig, exists := geminiConfig.McpServers[serverName]
+	serverConfig, exists := droidConfig.McpServers[serverName]
 	if !exists {
 		return nil, errors.ErrServerNotFound
 	}
 
 	return &installer.McpServer{
 		Name:    serverName,
-		Type:    "http",
+		Type:    serverConfig.Type,
 		URL:     serverConfig.URL,
 		Headers: serverConfig.Headers,
 	}, nil
 }
 
 func (i *Installer) FormatConfig(ctx context.Context, config interface{}) (string, error) {
-	geminiConfig, ok := config.(*GeminiConfig)
+	droidConfig, ok := config.(*DroidConfig)
 	if !ok {
 		return "", errors.ErrConfigInvalid
 	}
 
-	if len(geminiConfig.McpServers) == 0 {
+	if len(droidConfig.McpServers) == 0 {
 		return "No MCP servers configured", nil
 	}
 
 	kirhaServers := make(map[string]McpServerConfig)
 	otherServers := make(map[string]McpServerConfig)
 
-	for name, server := range geminiConfig.McpServers {
+	for name, server := range droidConfig.McpServers {
 		if name == installer.ServerName || strings.HasPrefix(name, "kirha") {
 			kirhaServers[name] = server
 		} else {
@@ -310,7 +301,11 @@ func (i *Installer) formatServerSection(sectionTitle string, servers map[string]
 
 	for name, server := range servers {
 		result += fmt.Sprintf("Server: %s\n", name)
+		result += fmt.Sprintf("  Type: %s\n", server.Type)
 		result += fmt.Sprintf("  URL: %s\n", server.URL)
+		if server.Disabled {
+			result += "  Disabled: true\n"
+		}
 		if len(server.Headers) > 0 {
 			result += "  Headers:\n"
 			for k, v := range server.Headers {
@@ -328,13 +323,13 @@ func (i *Installer) formatServerSection(sectionTitle string, servers map[string]
 }
 
 func (i *Installer) FormatSpecificServer(ctx context.Context, config interface{}) (string, error) {
-	geminiConfig, ok := config.(*GeminiConfig)
+	droidConfig, ok := config.(*DroidConfig)
 	if !ok {
 		return "", errors.ErrConfigInvalid
 	}
 
 	serverName := installer.ServerName
-	serverConfig, exists := geminiConfig.McpServers[serverName]
+	serverConfig, exists := droidConfig.McpServers[serverName]
 	if !exists {
 		return "", errors.ErrServerNotFound
 	}

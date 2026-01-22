@@ -5,6 +5,7 @@ import (
 
 	"go.kirha.ai/mcp-installer/internal/adapters/installers/claudecode"
 	"go.kirha.ai/mcp-installer/internal/adapters/installers/codex"
+	"go.kirha.ai/mcp-installer/internal/adapters/installers/droid"
 	"go.kirha.ai/mcp-installer/internal/adapters/installers/gemini"
 	"go.kirha.ai/mcp-installer/internal/adapters/installers/opencode"
 	"go.kirha.ai/mcp-installer/internal/core/domain/errors"
@@ -18,6 +19,7 @@ type Factory struct {
 	codex      ports.Installer
 	opencode   ports.Installer
 	gemini     ports.Installer
+	droid      ports.Installer
 }
 
 func NewFactory() factories.InstallerFactory {
@@ -26,6 +28,7 @@ func NewFactory() factories.InstallerFactory {
 		codex:      codex.New(),
 		opencode:   opencode.New(),
 		gemini:     gemini.New(),
+		droid:      droid.New(),
 	}
 }
 
@@ -39,6 +42,8 @@ func (f *Factory) GetInstaller(ctx context.Context, clientType installer.ClientT
 		return f.opencode, nil
 	case installer.ClientTypeGemini:
 		return f.gemini, nil
+	case installer.ClientTypeDroid:
+		return f.droid, nil
 	default:
 		return nil, errors.ErrClientNotSupported
 	}

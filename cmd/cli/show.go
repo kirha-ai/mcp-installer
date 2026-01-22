@@ -22,20 +22,20 @@ and other MCP servers that are configured. API keys will be masked for security.
 		Example: `  # Show MCP server configuration for Claude Code CLI
   mcp-installer show --client claudecode
 
-  # Show configuration for Cursor
-  mcp-installer show --client cursor
-
   # Show configuration for Codex with verbose output
   mcp-installer show --client codex --verbose
 
   # Show configuration for OpenCode
-  mcp-installer show --client opencode`,
+  mcp-installer show --client opencode
+
+  # Show configuration for Droid (Factory AI)
+  mcp-installer show --client droid`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runOperation(cmd, installer.OperationShow, client, "", configPath, false, verbose, false)
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to show configuration for (claudecode, codex, opencode, gemini) (required)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to show configuration for (claudecode, codex, opencode, gemini, droid) (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 

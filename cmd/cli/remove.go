@@ -24,20 +24,20 @@ If the server doesn't exist, the command will fail with an appropriate message.`
 		Example: `  # Remove from Claude Code CLI
   mcp-installer remove --client claudecode
 
-  # Remove from Cursor with dry run
-  mcp-installer remove --client cursor --dry-run
+  # Remove from Codex with dry run
+  mcp-installer remove --client codex --dry-run
 
-  # Remove from Codex with verbose output
-  mcp-installer remove --client codex --verbose
+  # Remove from OpenCode with verbose output
+  mcp-installer remove --client opencode --verbose
 
-  # Remove from OpenCode
-  mcp-installer remove --client opencode`,
+  # Remove from Droid (Factory AI)
+  mcp-installer remove --client droid`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runOperation(cmd, installer.OperationRemove, client, "", configPath, dryRun, verbose, force)
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to remove MCP server from (claudecode, codex, opencode, gemini) (required)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to remove MCP server from (claudecode, codex, opencode, gemini, droid) (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")

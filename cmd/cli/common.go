@@ -49,7 +49,7 @@ func runOperation(cmd *cobra.Command, operation installer.OperationType, client,
 		} else if errors.Is(err, domainErrors.ErrClientRunning) {
 			return fmt.Errorf("the %s application is currently running. Please close it and try again", client)
 		} else if errors.Is(err, domainErrors.ErrUnsupportedClient) {
-			return fmt.Errorf("unsupported client: %s\n\nSupported clients: claudecode, codex, opencode, gemini", client)
+			return fmt.Errorf("unsupported client: %s\n\nSupported clients: claudecode, codex, opencode, gemini, droid", client)
 		} else {
 			return fmt.Errorf("operation failed: %w", err)
 		}
@@ -77,6 +77,8 @@ func validateClient(client string) (installer.ClientType, error) {
 		return installer.ClientTypeOpencode, nil
 	case "gemini", "gemini-cli":
 		return installer.ClientTypeGemini, nil
+	case "droid", "factory":
+		return installer.ClientTypeDroid, nil
 	default:
 		return "", domainErrors.ErrUnsupportedClient
 	}

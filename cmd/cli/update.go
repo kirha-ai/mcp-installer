@@ -25,20 +25,20 @@ If the server doesn't exist, the command will fail with a suggestion to use 'ins
 		Example: `  # Update configuration for Claude Code CLI
   mcp-installer update --client claudecode --key your-new-api-key
 
-  # Update for Cursor with dry run
-  mcp-installer update --client cursor --key your-new-api-key --dry-run
+  # Update for Codex with dry run
+  mcp-installer update --client codex --key your-new-api-key --dry-run
 
-  # Update for Codex with verbose output
-  mcp-installer update --client codex --key your-new-api-key --verbose
+  # Update for OpenCode with verbose output
+  mcp-installer update --client opencode --key your-new-api-key --verbose
 
-  # Update for OpenCode
-  mcp-installer update --client opencode --key your-new-api-key`,
+  # Update for Droid (Factory AI)
+  mcp-installer update --client droid --key your-new-api-key`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runOperation(cmd, installer.OperationUpdate, client, apiKey, configPath, dryRun, verbose, force)
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to update configuration for (claudecode, codex, opencode, gemini) (required)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to update configuration for (claudecode, codex, opencode, gemini, droid) (required)")
 	cmd.Flags().StringVarP(&apiKey, "key", "k", "", "API key for Kirha MCP server (optional - preserves existing if not provided)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
