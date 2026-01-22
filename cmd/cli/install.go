@@ -38,7 +38,7 @@ If the server already exists, the command will fail with a suggestion to use 'up
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to install for (claudecode, cursor, codex, opencode) (required)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to install for (claudecode, codex, opencode, gemini) (required)")
 	cmd.Flags().StringVarP(&apiKey, "key", "k", "", "API key for Kirha MCP server (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")

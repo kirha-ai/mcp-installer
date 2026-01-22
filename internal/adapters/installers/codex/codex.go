@@ -28,9 +28,8 @@ type CodexConfig struct {
 }
 
 type McpServerConfig struct {
-	Type    string            `toml:"type"`
-	URL     string            `toml:"url"`
-	Headers map[string]string `toml:"headers"`
+	URL         string            `toml:"url"`
+	HTTPHeaders map[string]string `toml:"http_headers,omitempty"`
 }
 
 type Installer struct {
@@ -93,9 +92,8 @@ func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server
 	}
 
 	codexConfig.McpServers[server.Name] = McpServerConfig{
-		Type:    server.Type,
-		URL:     server.URL,
-		Headers: server.Headers,
+		URL:         server.URL,
+		HTTPHeaders: server.Headers,
 	}
 
 	slog.InfoContext(ctx, "added MCP server to configuration",
@@ -231,9 +229,9 @@ func (i *Installer) GetMcpServerConfig(ctx context.Context, config interface{}) 
 
 	return &installer.McpServer{
 		Name:    serverName,
-		Type:    serverConfig.Type,
+		Type:    "http",
 		URL:     serverConfig.URL,
-		Headers: serverConfig.Headers,
+		Headers: serverConfig.HTTPHeaders,
 	}, nil
 }
 
@@ -280,11 +278,10 @@ func (i *Installer) formatServerSection(sectionTitle string, servers map[string]
 
 	for name, server := range servers {
 		result += fmt.Sprintf("Server: %s\n", name)
-		result += fmt.Sprintf("  Type: %s\n", server.Type)
 		result += fmt.Sprintf("  URL: %s\n", server.URL)
-		if len(server.Headers) > 0 {
+		if len(server.HTTPHeaders) > 0 {
 			result += "  Headers:\n"
-			for k, v := range server.Headers {
+			for k, v := range server.HTTPHeaders {
 				if k == "Authorization" {
 					result += fmt.Sprintf("    %s: %s\n", k, security.MaskAPIKey(v))
 				} else {

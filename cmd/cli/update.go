@@ -38,7 +38,7 @@ If the server doesn't exist, the command will fail with a suggestion to use 'ins
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to update configuration for (claudecode, cursor, codex, opencode) (required)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to update configuration for (claudecode, codex, opencode, gemini) (required)")
 	cmd.Flags().StringVarP(&apiKey, "key", "k", "", "API key for Kirha MCP server (optional - preserves existing if not provided)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")

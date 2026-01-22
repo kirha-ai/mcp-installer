@@ -11,9 +11,9 @@ type ClientType string
 
 const (
 	ClientTypeClaudecode ClientType = "claudecode"
-	ClientTypeCursor     ClientType = "cursor"
 	ClientTypeCodex      ClientType = "codex"
 	ClientTypeOpencode   ClientType = "opencode"
+	ClientTypeGemini     ClientType = "gemini"
 )
 
 type OperationType string

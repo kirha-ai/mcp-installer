@@ -35,7 +35,7 @@ and other MCP servers that are configured. API keys will be masked for security.
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to show configuration for (claudecode, cursor, codex, opencode) (required)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to show configuration for (claudecode, codex, opencode, gemini) (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 

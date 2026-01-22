@@ -11,9 +11,9 @@ func TestClientType_String(t *testing.T) {
 		expected string
 	}{
 		{"Claudecode", ClientTypeClaudecode, "claudecode"},
-		{"Cursor", ClientTypeCursor, "cursor"},
 		{"Codex", ClientTypeCodex, "codex"},
 		{"Opencode", ClientTypeOpencode, "opencode"},
+		{"Gemini", ClientTypeGemini, "gemini"},
 	}
 
 	for _, tt := range tests {

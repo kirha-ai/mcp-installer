@@ -37,7 +37,7 @@ If the server doesn't exist, the command will fail with an appropriate message.`
 		},
 	}
 
-	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to remove MCP server from (claudecode, cursor, codex, opencode) (required)")
+	cmd.Flags().StringVarP(&client, "client", "c", "", "Client to remove MCP server from (claudecode, codex, opencode, gemini) (required)")
 	cmd.Flags().StringVar(&configPath, "config-path", "", "Custom configuration file path (optional)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without making changes")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging")
