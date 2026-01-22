@@ -18,16 +18,17 @@ import (
 const (
 	configFileName = "opencode.json"
 	configDir      = "opencode"
-	mcpKey         = "mcpServers"
+	mcpKey         = "mcp"
 )
 
 type OpenCodeConfig struct {
-	McpServers map[string]McpServerConfig `json:"mcpServers,omitempty"`
+	McpServers map[string]McpServerConfig `json:"mcp,omitempty"`
 }
 
 type McpServerConfig struct {
 	Type    string            `json:"type"`
 	URL     string            `json:"url"`
+	Enabled bool              `json:"enabled"`
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
@@ -100,6 +101,10 @@ func (i *Installer) LoadConfig(ctx context.Context) (interface{}, error) {
 					mcpServer.URL = url
 				}
 
+				if enabled, ok := serverMap["enabled"].(bool); ok {
+					mcpServer.Enabled = enabled
+				}
+
 				if headers, ok := serverMap["headers"].(map[string]interface{}); ok {
 					mcpServer.Headers = make(map[string]string)
 					for k, v := range headers {
@@ -127,9 +132,16 @@ func (i *Installer) AddMcpServer(ctx context.Context, config interface{}, server
 		return nil, errors.ErrServerAlreadyExists
 	}
 
+	// OpenCode uses "remote" type for HTTP MCP servers
+	serverType := server.Type
+	if serverType == "http" {
+		serverType = "remote"
+	}
+
 	openCodeConfig.McpServers[server.Name] = McpServerConfig{
-		Type:    server.Type,
+		Type:    serverType,
 		URL:     server.URL,
+		Enabled: true,
 		Headers: server.Headers,
 	}
 
